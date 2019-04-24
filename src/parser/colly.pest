@@ -2,15 +2,20 @@ program = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+) * ~ stmt? ~ EOI }
 stmt = {
 	assgmt_stmt
     | pattern_slot 
-    | pattern_track
+    | track
 }
 assgmt_stmt = { pattern_assgmt }
 
 pattern_assgmt = { pattern_slot ~ pattern_list }
-pattern_slot = @{ pattern_track ~ "." ~ unsigned_int }
-pattern_track = @{ "$" ~ unsigned_int }
+pattern_slot = @{ track ~ "." ~ unsigned_int }
+track = @{ "$" ~ unsigned_int }
+
 pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)* }
-pattern = { "|" ~ "|" }
+pattern = { "|" ~ event_group* ~  "|" }
+event_group = { event+ | "(" ~ event_group+ ~ ")" ~ event_method* }
+event = @{ note ~ event_method* ~ note* | event_method+ }
+event_method = { "+" | "." | "*" | ":" }
+note = { ASCII_HEX_DIGIT | "r" }
 
 number = @{ "-"? ~ unsigned_float }
 unsigned_float = @{ unsigned_int
@@ -20,5 +25,3 @@ unsigned_float = @{ unsigned_int
 unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
-
-
