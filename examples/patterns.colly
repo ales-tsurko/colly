@@ -1,0 +1,18 @@
+# this is a comment
+
+# $0 - track number
+# $0.1 - pattern slot number (on track number 0)
+
+# simple calling pattern track
+$0 # prints which slots in use
+
+# simple calling pattern slot
+$0.1 # prints its patterns and effects chain
+
+# pattern assignment
+$0.1000 ||
+
+# multiple voices
+$1.1 |  |, 
+     |  |,
+     |  |

@@ -1,0 +1,9 @@
+[package]
+name = "colly"
+version = "0.1.0"
+authors = ["Ales Tsurko <ales.tsurko@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+pest = "2.0"
+pest_derive = "2.0"

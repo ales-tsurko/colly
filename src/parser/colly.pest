@@ -1,0 +1,24 @@
+program = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+) * ~ stmt? ~ EOI }
+stmt = {
+	assgmt_stmt
+    | pattern_slot 
+    | pattern_track
+}
+assgmt_stmt = { pattern_assgmt }
+
+pattern_assgmt = { pattern_slot ~ pattern_list }
+pattern_slot = @{ pattern_track ~ "." ~ unsigned_int }
+pattern_track = @{ "$" ~ unsigned_int }
+pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)* }
+pattern = { "|" ~ "|" }
+
+number = @{ "-"? ~ unsigned_float }
+unsigned_float = @{ unsigned_int
+    ~ ("." ~ ASCII_DIGIT*)?
+    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
+
+
