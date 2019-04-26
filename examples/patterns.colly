@@ -1,6 +1,7 @@
 # this is a comment
 
-# $0 - track number
+# $ - mixer
+# $0 - mixer track number
 # $0.1 - pattern slot number (on track number 0)
 
 # simple calling pattern track in interpreter
@@ -10,7 +11,7 @@ $0 # prints which slots in use
 $0.1 # prints its patterns and effects chain
 
 # pattern assignment
-$0.1000 ||
+$0.1 ||
 
 # multiple voices
 $1.1 |  |, 
@@ -27,3 +28,4 @@ $1.4 |        a f     r0    112 |
 $1.5 | ( a f r0 (01 0 (00 1) )** ) |
 $1.6 | a.a 0__0 0 _ _ 0 |
 $1.7 | O a.a -0__0 oo0 _ _ +0 |
+$1.8 | ( a [f r0 (01 ([01] 01 (01)): 0)] (01 0 (00 1) )** ) |

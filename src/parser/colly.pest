@@ -3,21 +3,24 @@ stmt = {
 	assgn_stmt
     | pattern_slot 
     | track
+    | mixer
 }
 assgn_stmt = { pattern_assgmt }
 
 
-pattern_assgmt = { pattern_slot ~ pattern_list }
+pattern_assgmt = { pattern_slot ~ (pattern | pattern_list) }
 pattern_slot = @{ track ~ "." ~ unsigned_int }
-track = @{ "$" ~ unsigned_int }
+track = @{ mixer ~ unsigned_int }
+mixer = { "$" }
 
 
-pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)* }
-pattern = { "|" ~ event_group* ~  "|" }
-event_group = { event+ | "(" ~ event_group+ ~ ")" ~ event_method* }
+pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)+ }
+pattern = { "|" ~ (chord | event | parenthesised_event)+ ~  "|" }
+parenthesised_event = { "(" ~ (event | chord | parenthesised_event)+  ~ ")" ~ event_method* }
+chord = { "[" ~ (event | parenthesised_event)+ ~ "]" }
 event = @{ octave | alteration | note ~ event_method* ~ note* | event_method }
 event_method = { "_" | "." | "*" | ":" }
-note = { '0'..'9' | 'a'..'f' | "r" }
+note = { ASCII_DIGIT | 'a'..'f' | "r" }
 octave = { "o" | "O" }
 alteration = { "+" | "-" }
 
