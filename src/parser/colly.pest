@@ -15,14 +15,26 @@ mixer = { "$" }
 
 
 pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)+ }
-pattern = { "|" ~ (chord | event | parenthesised_event)+ ~  "|" }
-parenthesised_event = { "(" ~ (event | chord | parenthesised_event)+  ~ ")" ~ event_method* }
-chord = { "[" ~ (event | parenthesised_event)+ ~ "]" }
-event = @{ octave | alteration | note ~ event_method* ~ note* | event_method }
-event_method = { "_" | "." | "*" | ":" }
-note = { ASCII_DIGIT | 'a'..'f' | "r" }
+pattern = { "|" ~ (chord | symbol_group | parenthesised_event)* ~  "|" }
+parenthesised_event = { "(" ~ (symbol_group | chord | parenthesised_event)+  ~ ")" ~ event_method* }
+chord = { "[" ~ (symbol_group | parenthesised_event)+ ~ "]" }
+symbol_group = @{ pattern_symbol+ }
+pattern_symbol = { 
+    event_method 
+    | octave 
+    | alteration
+    | pitch
+    | pause
+    | pattern_input
+    | modulation }
+pitch = { ASCII_DIGIT | 'a'..'f' }
+pause = { "r" }
+pattern_input = { "%" }
 octave = { "o" | "O" }
 alteration = { "+" | "-" }
+event_method = { "_" | "." | "*" | ":" }
+modulation = { "p" | "F" | "<" | ">" | literal_modulation }
+literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
 
 
 number = @{ "-"? ~ unsigned_float }
@@ -33,4 +45,3 @@ unsigned_float = @{ unsigned_int
 unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
-
