@@ -4,10 +4,10 @@ stmt = {
     | method_call
     | expression
 }
-assgn_stmt = { pattern_assgmt }
+assgn_stmt = { pattern_assgmt | variable_assgmt }
 
-variable_declaration = { variable ~ (expression | method_call) }
-method_call = { expression ~ (identifier | variable | func_call)+ }
+variable_assgmt = { variable ~ "=" ~ (expression | method_call) }
+method_call = { expression ~ func_call+ }
 func_call = { identifier | variable | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
 expression = { 
     identifier 
