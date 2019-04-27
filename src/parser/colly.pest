@@ -1,21 +1,52 @@
 program = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+) * ~ stmt? ~ EOI }
 stmt = {
 	assgn_stmt
-    | pattern_slot 
-    | track
-    | mixer
+    | method_call
+    | expression
 }
 assgn_stmt = { pattern_assgmt }
 
+variable_declaration = { variable ~ (expression | method_call) }
+method_call = { expression ~ (identifier | variable | func_call)+ }
+func_call = { identifier | variable | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
+expression = { 
+    identifier 
+    | variable 
+    | pattern_string 
+    | number 
+    | string 
+    | pattern_slot 
+    | track 
+    | mixer 
+    | func_call }
+variable = @{ ":" ~ identifier }
+string = ${ "\"" ~ string_inner ~ "\"" }
+string_inner = @{ char* }
+char = {
+    !("\"" | "\\") ~ ANY
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+identifier = @{ ASCII_ALPHA+ ~ (ASCII_ALPHANUMERIC | "_")* }
+number = @{ "-"? ~ unsigned_float }
+unsigned_float = @{ unsigned_int
+    ~ ("." ~ ASCII_DIGIT*)?
+    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
-pattern_assgmt = { pattern_slot ~ (pattern | pattern_list) }
+pattern_assgmt = { pattern_slot ~ (pattern_expr | pattern_expr_list) }
 pattern_slot = @{ track ~ "." ~ unsigned_int }
 track = @{ mixer ~ unsigned_int }
 mixer = { "$" }
 
-
-pattern_list = { pattern ~ ("," ~ NEWLINE* ~ pattern)+ }
-pattern = { "|" ~ (chord | symbol_group | parenthesised_event)* ~  "|" }
+pattern_expr_list = { pattern_expr ~ ("," ~ NEWLINE* ~ pattern_expr)+ }
+pattern_expr = { pattern ~ func_call? ~ ("!" ~ func_call)* }
+pattern = { "|" ~ pattern_inner* ~  "|" }
+pattern_string = { "'" ~ pattern_inner+ ~ "'" }
+pattern_inner = _{ chord | symbol_group | parenthesised_event }
 parenthesised_event = { "(" ~ (symbol_group | chord | parenthesised_event)+  ~ ")" ~ event_method* }
 chord = { "[" ~ (symbol_group | parenthesised_event)+ ~ "]" }
 symbol_group = @{ pattern_symbol+ }
@@ -35,13 +66,3 @@ alteration = { "+" | "-" }
 event_method = { "_" | "." | "*" | ":" }
 modulation = { "p" | "F" | "<" | ">" | literal_modulation }
 literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
-
-
-number = @{ "-"? ~ unsigned_float }
-unsigned_float = @{ unsigned_int
-    ~ ("." ~ ASCII_DIGIT*)?
-    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
-}
-unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
-WHITESPACE = _{ " " | "\t" }
-COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
