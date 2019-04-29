@@ -13,7 +13,8 @@ func_expr = { func_call_list | func_call }
 func_call_list = { "(" ~ NEWLINE* ~ func_call ~ ("," ~ NEWLINE* ~ func_call ~ NEWLINE*)* ~ ")" }
 func_call = { primitive | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ ((primitive | func_call) ~ NEWLINE*)+ ~ ")" }
 primitive = _{ 
-    identifier 
+    property_getter
+    | identifier 
     | variable 
     | pattern_string 
     | number 
@@ -22,6 +23,12 @@ primitive = _{
     | track 
     | mixer
     | properties }
+property_getter = { (identifier 
+    | variable 
+    | pattern_string 
+    | pattern_slot 
+    | track 
+    | mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ identifier ~ NEWLINE*)+ }
 properties = { "{" ~ NEWLINE* ~ kv_pair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ kv_pair)* ~ NEWLINE* ~ "}" }
 kv_pair = { NEWLINE* ~ identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
     primitive
@@ -77,4 +84,3 @@ alteration = { "+" | "-" }
 event_method = { "_" | "." | "*" | ":" }
 modulation = { "p" | "F" | "<" | ">" | literal_modulation }
 literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
-
