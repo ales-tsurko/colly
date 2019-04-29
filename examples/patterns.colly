@@ -32,5 +32,5 @@ $1.8 | ( a [f r0 (01 ([0%] 01 (01)): 0)] (01 0 (00 1) )** ) |
 
 $1.9           | 0 0 0  %  | (choose '01' '9') ! (every 4 reverse) (every 2 (choose '001' '[012]'))
    { velocity: | p % ff pp | (choose 'ff' 'ppp'),
-          CC1: | m f p  f  | }
+          CC1: |   f p  f  | }
 
