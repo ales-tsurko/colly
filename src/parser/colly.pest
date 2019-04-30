@@ -2,27 +2,34 @@ program = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+) * ~ stmt? ~ EOI }
 stmt = {
 	assgn_stmt
     | method_call
-    | func_expr
-    | primitive
+    | expression
 }
 assgn_stmt = { pattern_assgmt | variable_assgmt }
 
-variable_assgmt = { variable ~ "=" ~ (primitive | func_expr | method_call) }
-method_call = { (primitive | func_expr) ~ func_expr+ }
-func_expr = { func_call_list | func_call }
-func_call_list = { "(" ~ NEWLINE* ~ func_call ~ ("," ~ NEWLINE* ~ func_call ~ NEWLINE*)* ~ ")" }
-func_call = { primitive | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ ((primitive | func_call) ~ NEWLINE*)+ ~ ")" }
-primitive = _{ 
+variable_assgmt = { variable ~ "=" ~ (expression | method_call) }
+method_call = { expression ~ func_expr+ }
+func_expr = { func_call | func_list_call }
+func_list_call = { "[" ~ NEWLINE* ~ func_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ func_expr ~ NEWLINE*)* ~ "]" }
+func_call = { (property_getter | identifier | variable) 
+    | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
+expression = _{ 
     property_getter
     | identifier 
     | variable 
+    | func_expr
     | pattern_string 
     | number 
     | string 
     | pattern_slot 
     | track 
     | mixer
-    | properties }
+    | properties
+    | array }
+pattern_slot = @{ track ~ "." ~ unsigned_int }
+track = @{ mixer ~ unsigned_int }
+mixer = { "$" }
+array = { "[" ~ NEWLINE* ~ array_inner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ array_inner ~ NEWLINE*)* ~ "]" }
+array_inner = _{ expression | method_call }
 property_getter = { (identifier 
     | variable 
     | pattern_string 
@@ -31,11 +38,9 @@ property_getter = { (identifier
     | mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ identifier ~ NEWLINE*)+ }
 properties = { "{" ~ NEWLINE* ~ kv_pair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ kv_pair)* ~ NEWLINE* ~ "}" }
 kv_pair = { NEWLINE* ~ identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
-    primitive
-    | func_expr
-    | method_call 
-    | pattern_expr 
-    | pattern_expr_list 
+    method_call 
+    | expression
+    | pattern_expr
     | properties) ~ NEWLINE* }
 variable = @{ ":" ~ identifier }
 string = ${ "\"" ~ string_inner ~ "\"" }
@@ -55,13 +60,11 @@ unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
-pattern_assgmt = { pattern_slot ~ (pattern_expr | pattern_expr_list) }
-pattern_slot = @{ track ~ "." ~ unsigned_int }
-track = @{ mixer ~ unsigned_int }
-mixer = { "$" }
+// Patterns (meta)language
 
+pattern_assgmt = { pattern_slot ~ (pattern_expr | pattern_expr_list) }
 pattern_expr_list = { pattern_expr ~ ("," ~ NEWLINE* ~ pattern_expr)+ }
-pattern_expr = { pattern ~ func_expr? ~ ("!" ~ func_expr+)? }
+pattern_expr = { pattern ~ func_expr? ~ ("!" ~ func_expr*)? ~ properties? }
 pattern = { "|" ~ pattern_inner* ~  "|" }
 pattern_string = { "'" ~ pattern_inner+ ~ "'" }
 pattern_inner = _{ chord | symbol_group | parenthesised_event }
@@ -84,3 +87,4 @@ alteration = { "+" | "-" }
 event_method = { "_" | "." | "*" | ":" }
 modulation = { "p" | "F" | "<" | ">" | literal_modulation }
 literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
+
