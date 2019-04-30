@@ -64,7 +64,7 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
 pattern_assgmt = { pattern_slot ~ (pattern_expr_list | pattern_expr) }
 pattern_expr_list = { pattern_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ pattern_expr)+ }
-pattern_expr = { pattern ~ func_expr? ~ ("!" ~ func_expr*)? ~ properties? }
+pattern_expr = { pattern ~ func_expr? ~ ("=>" ~ func_expr*)? ~ properties? }
 pattern = { "|" ~ pattern_inner* ~  "|" }
 pattern_string = { "'" ~ pattern_inner+ ~ "'" }
 pattern_inner = _{ chord | symbol_group | parenthesised_event }

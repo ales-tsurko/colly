@@ -30,7 +30,8 @@ $1.6 | a.a 0__0 0 _ _ 0 |
 $1.7 | O a.a -0__0 oo0 _ _ +0 |
 $1.8 | ( a [f r0 (01 ([0%] 01 (01)): 0)] (01 0 (00 1) )** ) |
 
-$1.9           | 0 0 0  %  | (choose '01' '9') ! (every 4 reverse) (every 2 (choose '001' '[012]')) {
+$1.9           | 0 0 0  %  | (choose '01' '9') => (every 4 reverse) (every 2 (choose '001' '[012]')) {
      velocity: | p % ff pp | (choose 'ff' 'ppp'),
-          CC1: |   f p  f  | }
+          CC1: |   f p  f  | },
+               | 0 |
 
