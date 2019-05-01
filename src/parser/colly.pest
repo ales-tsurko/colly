@@ -6,13 +6,10 @@ stmt = {
 }
 assgn_stmt = { pattern_assgmt | variable_assgmt | properties_assgmt }
 
-variable_assgmt = { variable ~ "=" ~ (expression | method_call) }
-properties_assgmt = { (expression | method_call) ~ properties }
+variable_assgmt = { variable ~ "=" ~ super_expression }
+properties_assgmt = { super_expression ~ properties }
+super_expression = {  method_call | expression }
 method_call = { expression ~ func_expr+ }
-func_expr = { func_call | func_list_call }
-func_list_call = { "[" ~ NEWLINE* ~ func_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ func_expr ~ NEWLINE*)* ~ "]" }
-func_call = { (property_getter | identifier | variable) 
-    | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
 expression = _{ 
     property_getter
     | boolean
@@ -27,24 +24,25 @@ expression = _{
     | properties
     | array
     | func_expr }
+func_expr = { func_call | func_list_call }
+func_list_call = { "[" ~ NEWLINE* ~ func_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ func_expr ~ NEWLINE*)* ~ "]" }
+func_call = { (property_getter | identifier | variable) 
+    | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
 boolean = { "true" | "false" }
 pattern_slot = @{ track ~ "." ~ unsigned_int }
 track = @{ mixer ~ unsigned_int }
 mixer = { "$" }
 array = { "[" ~ NEWLINE* ~ array_inner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ array_inner ~ NEWLINE*)* ~ "]" }
-array_inner = _{ expression | method_call }
-property_getter = { (identifier 
-    | variable 
+array_inner = _{ super_expression }
+property_getter = { (variable 
     | pattern_string 
     | pattern_slot 
     | track 
     | mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ identifier ~ NEWLINE*)+ }
 properties = { "{" ~ NEWLINE* ~ kv_pair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ kv_pair)* ~ NEWLINE* ~ "}" }
 kv_pair = { NEWLINE* ~ identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
-    method_call 
-    | expression
-    | pattern_expr
-    | properties) ~ NEWLINE* }
+    super_expression
+    | pattern_expr) ~ NEWLINE* }
 variable = @{ ":" ~ identifier }
 string = ${ "\"" ~ string_inner ~ "\"" }
 string_inner = @{ char* }
@@ -53,7 +51,7 @@ char = {
     | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
-identifier = @{ ASCII_ALPHA+ ~ (ASCII_ALPHANUMERIC | "_")* }
+identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 number = @{ "-"? ~ unsigned_float }
 unsigned_float = @{ unsigned_int
     ~ ("." ~ ASCII_DIGIT*)?
@@ -65,7 +63,8 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
 // Patterns (meta)language
 
-pattern_assgmt = { pattern_slot ~ (pattern_expr_list | pattern_expr) }
+pattern_assgmt = { pattern_slot ~ pattern_super_expression }
+pattern_super_expression = { pattern_expr_list | pattern_expr }
 pattern_expr_list = { pattern_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ pattern_expr)+ }
 pattern_expr = { pattern ~ func_expr? ~ ("=>" ~ func_expr*)? ~ properties? }
 pattern = { "|" ~ pattern_inner* ~  "|" }
