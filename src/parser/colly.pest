@@ -2,11 +2,12 @@ program = _{ SOI ~ NEWLINE* ~ (stmt ~ NEWLINE+) * ~ stmt? ~ EOI }
 stmt = {
 	assgn_stmt
     | method_call
-    | expression
+    | func_expr
 }
-assgn_stmt = { pattern_assgmt | variable_assgmt }
+assgn_stmt = { pattern_assgmt | variable_assgmt | properties_assgmt }
 
 variable_assgmt = { variable ~ "=" ~ (expression | method_call) }
+properties_assgmt = { (expression | method_call) ~ properties }
 method_call = { expression ~ func_expr+ }
 func_expr = { func_call | func_list_call }
 func_list_call = { "[" ~ NEWLINE* ~ func_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ func_expr ~ NEWLINE*)* ~ "]" }
@@ -14,9 +15,9 @@ func_call = { (property_getter | identifier | variable)
     | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
 expression = _{ 
     property_getter
+    | boolean
     | identifier 
     | variable 
-    | func_expr
     | pattern_string 
     | number 
     | string 
@@ -24,7 +25,9 @@ expression = _{
     | track 
     | mixer
     | properties
-    | array }
+    | array
+    | func_expr }
+boolean = { "true" | "false" }
 pattern_slot = @{ track ~ "." ~ unsigned_int }
 track = @{ mixer ~ unsigned_int }
 mixer = { "$" }
@@ -87,4 +90,3 @@ alteration = { "+" | "-" }
 event_method = { "_" | "." | "*" | ":" }
 modulation = { "p" | "F" | "<" | ">" | literal_modulation }
 literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
-
