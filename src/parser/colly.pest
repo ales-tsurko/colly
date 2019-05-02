@@ -10,7 +10,7 @@ variable_assgmt = { variable ~ "=" ~ super_expression }
 properties_assgmt = { super_expression ~ properties }
 super_expression = {  method_call | expression }
 method_call = { expression ~ func_expr+ }
-expression = _{ 
+expression = { 
     property_getter
     | boolean
     | identifier 
@@ -29,8 +29,8 @@ func_list_call = { "[" ~ NEWLINE* ~ func_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ fun
 func_call = { (property_getter | identifier | variable) 
     | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
 boolean = { "true" | "false" }
-pattern_slot = @{ track ~ "." ~ unsigned_int }
-track = @{ mixer ~ unsigned_int }
+pattern_slot = ${ track ~ "." ~ unsigned_int }
+track = ${ mixer ~ unsigned_int }
 mixer = { "$" }
 array = { "[" ~ NEWLINE* ~ array_inner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ array_inner ~ NEWLINE*)* ~ "]" }
 array_inner = _{ super_expression }
@@ -43,7 +43,7 @@ properties = { "{" ~ NEWLINE* ~ kv_pair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ kv_pair)*
 kv_pair = { NEWLINE* ~ identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
     super_expression
     | pattern_expr) ~ NEWLINE* }
-variable = @{ ":" ~ identifier }
+variable = ${ ":" ~ identifier }
 string = ${ "\"" ~ string_inner ~ "\"" }
 string_inner = @{ char* }
 char = {
@@ -67,12 +67,12 @@ pattern_assgmt = { pattern_slot ~ pattern_super_expression }
 pattern_super_expression = { pattern_expr_list | pattern_expr }
 pattern_expr_list = { pattern_expr ~ NEWLINE* ~ ("," ~ NEWLINE* ~ pattern_expr)+ }
 pattern_expr = { pattern ~ func_expr? ~ ("=>" ~ func_expr*)? ~ properties? }
-pattern = { "|" ~ pattern_inner* ~  "|" }
-pattern_string = { "'" ~ pattern_inner+ ~ "'" }
-pattern_inner = _{ chord | symbol_group | parenthesised_event }
-parenthesised_event = { "(" ~ (symbol_group | chord | parenthesised_event)+  ~ ")" ~ event_method* }
-chord = { "[" ~ (symbol_group | parenthesised_event)+ ~ "]" }
-symbol_group = @{ pattern_symbol+ }
+pattern = { "|" ~ event* ~  "|" }
+pattern_string = { "'" ~ event+ ~ "'" }
+event = _{ chord | group | parenthesised_event }
+parenthesised_event = { "(" ~ event+  ~ ")" ~ event_method* }
+chord = { "[" ~ (group | parenthesised_event)+ ~ "]" }
+group = ${ pattern_symbol+ }
 pattern_symbol = { 
     event_method 
     | octave 

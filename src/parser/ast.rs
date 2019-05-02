@@ -7,7 +7,7 @@ pub enum Ast<'a> {
 }
 
 pub enum Assign<'a> {
-    Pattern,
+    Pattern(Expression<'a>, PatternSuperExpression<'a>),
     Variable {
         assignee: Identifier<'a>,
         assignment: SuperExpression<'a>,
@@ -27,7 +27,10 @@ pub enum SuperExpression<'a> {
 }
 
 pub enum Expression<'a> {
-    PropertyGetter,
+    PropertyGetter {
+        assignee: &'a Expression<'a>,
+        identifier: Identifier<'a>
+    },
     Boolean(bool),
     Identifier(Identifier<'a>),
     Variable(Identifier<'a>),
@@ -57,3 +60,60 @@ pub enum FunctionExpression<'a> {
 }
 
 pub struct FunctionCall<'a>(pub Identifier<'a>);
+
+pub enum PatternSuperExpression<'a> {
+    ExpressionList(Vec<PatternExpression<'a>>),
+    Expression(PatternExpression<'a>)
+}
+
+pub struct PatternExpression<'a> { 
+    pub pattern: Pattern,
+    pub inner_method: Option<FunctionExpression<'a>>,
+    pub methods: Option<Vec<FunctionExpression<'a>>>,
+    pub properties: Option<Properties<'a>>,
+}
+
+pub struct Pattern {
+    pub inner: Vec<Event>
+}
+
+pub enum Event {
+    Chord(Vec<Event>),
+    Group(Vec<PatternSymbol>), 
+    ParenthesisedEvent(Vec<Event>),
+}
+
+pub enum PatternSymbol {
+    EventMethod(EventMethod), 
+    Octave(Octave), 
+    Alteration(Alteration),
+    Pitch(u64),
+    Pause,
+    PatternInput,
+    Modulation(Modulation),
+}
+
+pub enum EventMethod {
+    Tie,
+    Dot,
+    Multiply,
+    Divide,
+}
+
+pub enum Octave {
+    Up,
+    Down,
+}
+
+pub enum Alteration {
+    Up,
+    Down,
+}
+
+pub enum Modulation {
+    Down,
+    Up,
+    Crescendo,
+    Diminuendo,
+    Literal(f64),
+}
