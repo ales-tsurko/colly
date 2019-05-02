@@ -1,6 +1,45 @@
+use crate::parser::Rule;
+use crate::parser_error_from_string_with_pair;
+use pest::{ 
+    iterators::{Pair, Pairs},
+    error::{Error, ErrorVariant},
+};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
-pub enum Ast<'a> {
+pub struct Ast<'a>(pub Vec<Statement<'a>>);
+
+impl<'a, 'b: 'a> TryFrom<Pairs<'a, Rule>> for Ast<'b> {
+    type Error = Error<Rule>;
+
+    fn try_from(pairs: Pairs<Rule>) -> Result<Self, Self::Error> {
+        dbg!(pairs);
+        //TODO parse pairs here
+        //let mut nodes: Vec<Statement> = vec![];
+        //for pair in pairs {
+        //let statement = Statement::try_from(&rule)?;
+        //nodes.push(statement);
+        //}
+        //Ast(nodes);
+        unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::CollyParser;
+    use pest::Parser;
+
+    #[test]
+    fn test_ast_from_rule() {
+        let pairs = CollyParser::parse(Rule::file, "\n(hello world)\n(world hello)\n")
+            .unwrap();
+        let ast = Ast::try_from(pairs).unwrap();
+    }
+}
+
+pub enum Statement<'a> {
     Assign(Assign<'a>),
     Method,
     Function(FunctionExpression<'a>),
