@@ -5,21 +5,20 @@ use pest::{
     iterators::{Pair, Pairs},
 };
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
-pub struct Ast<'a>(pub Vec<Statement<'a>>);
+type ParseResult<T> = Result<T, Error<Rule>>;
 
-impl<'a, 'b: 'a> TryFrom<Pairs<'a, Rule>> for Ast<'b> {
+pub struct Ast(pub Vec<Statement>);
+
+impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     type Error = Error<Rule>;
 
-    fn try_from(pairs: Pairs<Rule>) -> Result<Self, Self::Error> {
+    fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
         let mut nodes: Vec<Statement> = Vec::new();
         for pair in pairs {
             match pair.as_rule() {
-                Rule::statement => {
-                    let statement = Statement::try_from(pair)?;
-                    nodes.push(statement)
-                }
+                Rule::Statement => nodes.push(pair.try_into()?),
                 Rule::EOI => continue,
                 _ => unreachable!(),
             }
@@ -28,35 +27,89 @@ impl<'a, 'b: 'a> TryFrom<Pairs<'a, Rule>> for Ast<'b> {
     }
 }
 
-impl<'a> Ast<'a> {
-    fn parse_rule_error<T>(pair: &Pair<Rule>) -> Result<T, Error<Rule>> {
+impl Ast {
+    pub fn parse_rule_error<T>(pair: &Pair<Rule>) -> ParseResult<T> {
         Err(parser_error_from_string_with_pair(
             &format!("Cannot build statement from {:?}", pair.as_rule()),
             &pair,
         ))
     }
+
+    pub fn assert_rule(expected: Rule, pair: &Pair<Rule>) -> ParseResult<()> {
+        if pair.as_rule() == expected {
+            Ok(())
+        } else {
+            Ast::parse_rule_error(&pair)
+        }
+    }
 }
 
-pub enum Statement<'a> {
-    Assign(Assign<'a>),
+
+pub enum Statement {
+    Assign(Assign),
     Method,
-    Function(FunctionExpression<'a>),
+    Function(FunctionExpression),
 }
 
-impl<'a, 'b: 'a> TryFrom<Pair<'a, Rule>> for Statement<'b> {
+impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
     type Error = Error<Rule>;
 
-    fn try_from(pair: Pair<Rule>) -> Result<Self, Self::Error> {
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner().next().unwrap();
         match inner.as_rule() {
-            Rule::assign_statement => Statement::from_assign(&inner),
+            Rule::FunctionExpression => Statement::from_function_expression(inner),
+            Rule::MethodCall => Statement::from_method_call(inner),
+            Rule::AssignStatement => Statement::from_assign(inner),
             _ => Ast::parse_rule_error::<Self>(&inner),
         }
     }
 }
 
-impl<'a> Statement<'a> {
-    fn from_assign(pair: &Pair<Rule>) -> Result<Self, Error<Rule>> {
+impl Statement {
+    fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
+        Ok(Statement::Function(pair.try_into()?))
+    }
+
+    fn from_method_call(pair: Pair<Rule>) -> ParseResult<Self> {
+        Ok(Statement::Method)
+    }
+
+    fn from_assign(pair: Pair<Rule>) -> ParseResult<Self> {
+        Ok(Statement::Assign(pair.try_into()?))
+    }
+}
+
+pub enum FunctionExpression {
+    Function(FunctionCall),
+    FunctionList(Vec<FunctionCall>),
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        unimplemented!()
+    }
+}
+
+pub struct FunctionCall(pub Identifier);
+
+pub enum Assign {
+    Pattern(Expression, PatternSuperExpression),
+    Variable {
+        assignee: Identifier,
+        assignment: SuperExpression,
+    },
+    Properties {
+        assignee: SuperExpression,
+        assignment: Expression,
+    },
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for Assign {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         unimplemented!()
     }
 }
@@ -69,76 +122,57 @@ mod tests {
 
     #[test]
     fn test_ast_from_rule() {
-        let pairs = CollyParser::parse(Rule::file, "\n(hello world)\n(world hello)\n").unwrap();
-        let ast = Ast::try_from(pairs).unwrap();
+        let pairs = CollyParser::parse(Rule::File, "\nhello world\n").unwrap();
+        let _ast = Ast::try_from(pairs).unwrap();
     }
 }
 
-pub enum Assign<'a> {
-    Pattern(Expression<'a>, PatternSuperExpression<'a>),
-    Variable {
-        assignee: Identifier<'a>,
-        assignment: SuperExpression<'a>,
-    },
-    Properties {
-        assignee: SuperExpression<'a>,
-        assignment: Expression<'a>,
-    },
-}
-
-pub enum SuperExpression<'a> {
-    Expression(Expression<'a>),
+pub enum SuperExpression {
+    Expression(Expression),
     Method {
-        caller: Expression<'a>,
-        callee: Vec<FunctionExpression<'a>>,
+        caller: Expression,
+        callee: Vec<FunctionExpression>,
     },
 }
 
-pub enum Expression<'a> {
+pub enum Expression {
     PropertyGetter {
-        assignee: &'a Expression<'a>,
-        identifier: Identifier<'a>,
+        assignee: Box<Expression>,
+        identifier: Identifier,
     },
     Boolean(bool),
-    Identifier(Identifier<'a>),
-    Variable(Identifier<'a>),
+    Identifier(Identifier),
+    Variable(Identifier),
     PatternString,
     Number(f64),
-    String(&'a str),
+    String(String),
     PatternSlot((u64, u64)),
     Track(u64),
     Mixer,
-    Properties(Properties<'a>),
-    Array(Vec<SuperExpression<'a>>),
-    Function(FunctionExpression<'a>),
+    Properties(Properties),
+    Array(Vec<SuperExpression>),
+    Function(FunctionExpression),
 }
 
-pub struct Properties<'a>(HashMap<Key<'a>, Value<'a>>);
-pub struct Key<'a>(Identifier<'a>);
-pub enum Value<'a> {
-    SuperExpression(SuperExpression<'a>),
+pub struct Properties(HashMap<Key, Value>);
+pub struct Key(Identifier);
+pub enum Value {
+    SuperExpression(SuperExpression),
     PatternExpression,
 }
 
-pub struct Identifier<'a>(pub &'a str);
+pub struct Identifier(pub String);
 
-pub enum FunctionExpression<'a> {
-    Function(FunctionCall<'a>),
-    FunctionList(Vec<FunctionCall<'a>>),
+pub enum PatternSuperExpression {
+    ExpressionList(Vec<PatternExpression>),
+    Expression(PatternExpression),
 }
 
-pub struct FunctionCall<'a>(pub Identifier<'a>);
-
-pub enum PatternSuperExpression<'a> {
-    ExpressionList(Vec<PatternExpression<'a>>),
-    Expression(PatternExpression<'a>),
-}
-
-pub struct PatternExpression<'a> {
+pub struct PatternExpression {
     pub pattern: Pattern,
-    pub inner_method: Option<FunctionExpression<'a>>,
-    pub methods: Option<Vec<FunctionExpression<'a>>>,
-    pub properties: Option<Properties<'a>>,
+    pub inner_method: Option<FunctionExpression>,
+    pub methods: Option<Vec<FunctionExpression>>,
+    pub properties: Option<Properties>,
 }
 
 pub struct Pattern {

@@ -1,91 +1,91 @@
-file = _{ SOI ~ NEWLINE* ~ (statement ~ NEWLINE+) * ~ statement? ~ EOI }
-statement = {
-	assign_statement
-    | method_call
-    | func_expression
+File = _{ SOI ~ NEWLINE* ~ (Statement ~ NEWLINE+) * ~ Statement? ~ EOI }
+Statement = {
+	AssignStatement
+    | MethodCall
+    | FunctionExpression
 }
-assign_statement = { pattern_assignment | variable_assignment | properties_assignment }
+AssignStatement = { PatternAssignment | VariableAssignment | PropertiesAssignment }
 
-variable_assignment = { variable ~ "=" ~ super_expression }
-properties_assignment = { super_expression ~ properties }
-super_expression = {  method_call | expression }
-method_call = { expression ~ func_expression+ }
-expression = { 
-    property_getter
-    | boolean
-    | identifier 
-    | variable 
-    | pattern_string 
-    | number 
-    | string 
-    | pattern_slot 
-    | track 
-    | mixer
-    | properties
-    | array
-    | func_expression }
-func_expression = { func_call | func_list_call }
-func_list_call = { "[" ~ NEWLINE* ~ func_expression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ func_expression ~ NEWLINE*)* ~ "]" }
-func_call = { (property_getter | identifier | variable) 
-    | "(" ~ NEWLINE* ~ identifier ~ NEWLINE* ~ (expression ~ NEWLINE*)+ ~ ")" }
-boolean = { "true" | "false" }
-pattern_slot = ${ track ~ "." ~ unsigned_int }
-track = ${ mixer ~ unsigned_int }
-mixer = { "$" }
-array = { "[" ~ NEWLINE* ~ array_inner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ array_inner ~ NEWLINE*)* ~ "]" }
-array_inner = _{ super_expression }
-property_getter = { (variable 
-    | pattern_string 
-    | pattern_slot 
-    | track 
-    | mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ identifier ~ NEWLINE*)+ }
-properties = { "{" ~ NEWLINE* ~ kv_pair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ kv_pair)* ~ NEWLINE* ~ "}" }
-kv_pair = { NEWLINE* ~ identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
-    super_expression
-    | pattern_expression) ~ NEWLINE* }
-variable = ${ ":" ~ identifier }
-string = ${ "\"" ~ string_inner ~ "\"" }
-string_inner = @{ char* }
-char = {
+VariableAssignment = { Variable ~ "=" ~ SuperExpression }
+PropertiesAssignment = { SuperExpression ~ Properties }
+SuperExpression = {  MethodCall | Expression }
+MethodCall = { Expression ~ FunctionExpression+ }
+Expression = { 
+    PropertyGetter
+    | Boolean
+    | Identifier 
+    | Variable 
+    | PatternString 
+    | Number 
+    | String 
+    | PatternSlot 
+    | Track 
+    | Mixer
+    | Properties
+    | Array
+    | FunctionExpression }
+FunctionExpression = { FunctionCall | FunctionListCall }
+FunctionListCall = { "[" ~ NEWLINE* ~ FunctionExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ FunctionExpression ~ NEWLINE*)* ~ "]" }
+FunctionCall = { (PropertyGetter | Identifier | Variable) 
+    | "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
+Boolean = { "true" | "false" }
+PatternSlot = ${ Track ~ "." ~ UnsignedInt }
+Track = ${ Mixer ~ UnsignedInt }
+Mixer = { "$" }
+Array = { "[" ~ NEWLINE* ~ ArrayInner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ ArrayInner ~ NEWLINE*)* ~ "]" }
+ArrayInner = _{ SuperExpression }
+PropertyGetter = { (Variable 
+    | PatternString 
+    | PatternSlot 
+    | Track 
+    | Mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ Identifier ~ NEWLINE*)+ }
+Properties = { "{" ~ NEWLINE* ~ KvPair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ KvPair)* ~ NEWLINE* ~ "}" }
+KvPair = { NEWLINE* ~ Identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
+    SuperExpression
+    | PatternExpression) ~ NEWLINE* }
+Variable = ${ ":" ~ Identifier }
+String = ${ "\"" ~ StringInner ~ "\"" }
+StringInner = @{ Char* }
+Char = {
     !("\"" | "\\") ~ ANY
     | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
     | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
 }
-identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
-number = @{ "-"? ~ unsigned_float }
-unsigned_float = @{ unsigned_int
+Identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+Number = @{ "-"? ~ UnsignedFloat }
+UnsignedFloat = @{ UnsignedInt
     ~ ("." ~ ASCII_DIGIT*)?
     ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
 }
-unsigned_int = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
+UnsignedInt = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
 // Patterns (meta)language
 
-pattern_assignment = { pattern_slot ~ pattern_super_expression }
-pattern_super_expression = { pattern_expression_list | pattern_expression }
-pattern_expression_list = { pattern_expression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ pattern_expression)+ }
-pattern_expression = { pattern ~ func_expression? ~ ("=>" ~ func_expression*)? ~ properties? }
-pattern = { "|" ~ event* ~  "|" }
-pattern_string = { "'" ~ event+ ~ "'" }
-event = _{ chord | group | parenthesised_event }
-parenthesised_event = { "(" ~ event+  ~ ")" ~ event_method* }
-chord = { "[" ~ (group | parenthesised_event)+ ~ "]" }
-group = ${ pattern_symbol+ }
-pattern_symbol = { 
-    event_method 
-    | octave 
-    | alteration
-    | pitch
-    | pause
-    | pattern_input
-    | modulation }
-pitch = { ASCII_DIGIT | 'a'..'f' }
-pause = { "r" }
-pattern_input = { "%" }
-octave = { "o" | "O" }
-alteration = { "+" | "-" }
-event_method = { "_" | "." | "*" | ":" }
-modulation = { "p" | "F" | "<" | ">" | literal_modulation }
-literal_modulation = { ("{" ~ WHITESPACE* ~ number ~ WHITESPACE* ~ "}") }
+PatternAssignment = { PatternSlot ~ PatternSuperExpression }
+PatternSuperExpression = { PatternExpressionList | PatternExpression }
+PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
+PatternExpression = { Pattern ~ FunctionExpression? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
+Pattern = { "|" ~ Event* ~  "|" }
+PatternString = { "'" ~ Event+ ~ "'" }
+Event = _{ Chord | Group | ParenthesisedEvent }
+ParenthesisedEvent = { "(" ~ Event+  ~ ")" ~ EventMethod* }
+Chord = { "[" ~ (Group | ParenthesisedEvent)+ ~ "]" }
+Group = ${ PatternSymbol+ }
+PatternSymbol = { 
+    EventMethod 
+    | Octave 
+    | Alteration
+    | Pitch
+    | Pause
+    | PatternInput
+    | Modulation }
+Pitch = { ASCII_DIGIT | 'a'..'f' }
+Pause = { "r" }
+PatternInput = { "%" }
+Octave = { "o" | "O" }
+Alteration = { "+" | "-" }
+EventMethod = { "_" | "." | "*" | ":" }
+Modulation = { "p" | "F" | "<" | ">" | LiteralModulation }
+LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
