@@ -1,7 +1,7 @@
 use crate::parser::Rule;
 use crate::parser_error_from_string_with_pair;
 use pest::{
-    error::Error,
+    error::{Error, ErrorVariant},
     iterators::{Pair, Pairs},
 };
 use std::collections::HashMap;
@@ -15,15 +15,11 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     type Error = Error<Rule>;
 
     fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
-        let mut nodes: Vec<Statement> = Vec::new();
-        for pair in pairs {
-            match pair.as_rule() {
-                Rule::Statement => nodes.push(pair.try_into()?),
-                Rule::EOI => continue,
-                _ => unreachable!(),
-            }
-        }
-        Ok(Ast(nodes))
+        let statements: ParseResult<Vec<Statement>> = pairs
+            .filter(|pair| pair.as_rule() == Rule::Statement)
+            .map(Statement::try_from)
+            .collect();
+        Ok(Ast(statements?))
     }
 }
 
@@ -42,20 +38,32 @@ impl Ast {
             Ast::parse_rule_error(&pair)
         }
     }
+
+    pub fn inner_for_pair(pair: Pair<Rule>) -> ParseResult<Pair<Rule>> {
+        let span = pair.as_span();
+        pair.into_inner().next().ok_or_else(|| {
+            Error::new_from_span(
+                ErrorVariant::CustomError {
+                    message: String::from("Cannot get inner."),
+                },
+                span,
+            )
+        })
+    }
 }
 
-
+//
 pub enum Statement {
-    Assign(Assign),
-    Method,
     Function(FunctionExpression),
+    Method(MethodCall),
+    Assign(Assign),
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = pair.into_inner().next().unwrap();
+        let inner = Ast::inner_for_pair(pair)?;
         match inner.as_rule() {
             Rule::FunctionExpression => Statement::from_function_expression(inner),
             Rule::MethodCall => Statement::from_method_call(inner),
@@ -71,7 +79,7 @@ impl Statement {
     }
 
     fn from_method_call(pair: Pair<Rule>) -> ParseResult<Self> {
-        Ok(Statement::Method)
+        Ok(Statement::Method(pair.try_into()?))
     }
 
     fn from_assign(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -79,6 +87,7 @@ impl Statement {
     }
 }
 
+//
 pub enum FunctionExpression {
     Function(FunctionCall),
     FunctionList(Vec<FunctionCall>),
@@ -88,12 +97,57 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = Ast::inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::FunctionCall => FunctionExpression::from_func_call(inner),
+            Rule::FunctionListCall => FunctionExpression::from_func_call_list(inner),
+            _ => Ast::parse_rule_error::<Self>(&inner),
+        }
+    }
+}
+
+impl FunctionExpression {
+    fn from_func_call(pair: Pair<Rule>) -> ParseResult<Self> {
+        Ok(FunctionExpression::Function(pair.try_into()?))
+    }
+
+    fn from_func_call_list(pair: Pair<Rule>) -> ParseResult<Self> {
+        let functions: ParseResult<Vec<FunctionCall>> =
+            pair.into_inner().map(FunctionCall::try_from).collect();
+        Ok(FunctionExpression::FunctionList(functions?))
+    }
+}
+
+//
+pub struct FunctionCall {
+    pub identifier: Box<Expression>,
+    pub parameters: Option<Vec<Expression>>,
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        dbg!(&pair);
         unimplemented!()
     }
 }
 
-pub struct FunctionCall(pub Identifier);
+//
+pub struct MethodCall {
+    pub caller: Expression,
+    pub methods: Vec<FunctionExpression>,
+}
 
+impl<'a> TryFrom<Pair<'a, Rule>> for MethodCall {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        unimplemented!()
+    }
+}
+
+//
 pub enum Assign {
     Pattern(Expression, PatternSuperExpression),
     Variable {
@@ -122,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_ast_from_rule() {
-        let pairs = CollyParser::parse(Rule::File, "\nhello world\n").unwrap();
+        let pairs = CollyParser::parse(Rule::File, "\n(hello world)\n(world hello)\n").unwrap();
         let _ast = Ast::try_from(pairs).unwrap();
     }
 }
