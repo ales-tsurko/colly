@@ -145,7 +145,7 @@ impl SuperExpression {
 pub enum Expression {
     PropertyGetter {
         assignee: Box<Expression>,
-        identifier: Identifier,
+        property_id: Identifier,
     },
     Boolean(bool),
     Identifier(Identifier),
@@ -189,10 +189,10 @@ impl Expression {
         let mut inner = pair.clone().into_inner();
         let assignee: Box<Expression> = Box::new(Ast::next_pair(&mut inner, &pair)?.try_into()?);
         let raw_identifier = Ast::next_pair(&mut inner, &pair)?;
-        if let Expression::Identifier(identifier) = raw_identifier.clone().try_into()? {
+        if let Expression::Identifier(property_id) = raw_identifier.clone().try_into()? {
             return Ok(Expression::PropertyGetter {
                 assignee,
-                identifier,
+                property_id,
             });
         }
 
@@ -203,7 +203,8 @@ impl Expression {
     }
 
     pub fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let value: bool = pair.as_str().parse().unwrap();
+        Ok(Expression::Boolean(value))
     }
 
     pub fn from_identifier(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -225,7 +226,9 @@ impl Expression {
     }
 
     pub fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let inner = Ast::first_inner_for_pair(pair)?;
+        let value: String = inner.as_str().parse().unwrap();
+        Ok(Expression::String(value))
     }
 
     pub fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
