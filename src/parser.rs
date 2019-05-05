@@ -1,4 +1,3 @@
-
 #[derive(Parser)]
 #[grammar = "parser/colly.pest"]
 pub struct CollyParser;

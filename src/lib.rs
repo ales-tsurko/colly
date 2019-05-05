@@ -5,9 +5,9 @@ use pest::error::{Error, ErrorVariant};
 use pest::iterators::Pair;
 use pest::RuleType;
 
-fn parser_error_from_string_with_pair<T>(message: &str, pair: &Pair<T>)
-    -> Error<T>
-    where T: RuleType
+fn parser_error<T>(message: &str, pair: &Pair<T>) -> Error<T>
+where
+    T: RuleType,
 {
     let variant = ErrorVariant::CustomError {
         message: message.to_string(),

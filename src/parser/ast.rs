@@ -1,16 +1,20 @@
 #[cfg(test)]
 mod tests;
+use crate::parser::CollyParser;
 use crate::parser::Rule;
-use crate::parser_error_from_string_with_pair;
+use crate::parser_error;
+use pest::Parser;
 use pest::{
     error::{Error, ErrorVariant},
     iterators::{Pair, Pairs},
 };
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
+use std::str::FromStr;
 
 type ParseResult<T> = Result<T, Error<Rule>>;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ast(pub Vec<Statement>);
 
 impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
@@ -19,7 +23,7 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
         let raw_statements: ParseResult<Vec<Pair<Rule>>> = pairs
             .filter(|pair| pair.as_rule() == Rule::Statement)
-            .map(Ast::inner_for_pair)
+            .map(Ast::first_inner_for_pair)
             .collect();
         let statements: ParseResult<Vec<Statement>> = raw_statements?
             .into_iter()
@@ -31,8 +35,8 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
 
 impl Ast {
     pub fn parse_rule_error<T>(pair: &Pair<Rule>) -> ParseResult<T> {
-        Err(parser_error_from_string_with_pair(
-            &format!("Cannot build statement from {:?}", pair.as_rule()),
+        Err(parser_error(
+            &format!("Error parsing {:?}", pair.as_rule()),
             &pair,
         ))
     }
@@ -45,7 +49,7 @@ impl Ast {
         }
     }
 
-    pub fn inner_for_pair(pair: Pair<Rule>) -> ParseResult<Pair<Rule>> {
+    pub fn first_inner_for_pair(pair: Pair<Rule>) -> ParseResult<Pair<Rule>> {
         let span = pair.as_span();
         pair.into_inner().next().ok_or_else(|| {
             Error::new_from_span(
@@ -56,9 +60,28 @@ impl Ast {
             )
         })
     }
+
+    pub fn next_pair<'a>(
+        pairs: &mut Pairs<'a, Rule>,
+        previous: &Pair<'a, Rule>,
+    ) -> ParseResult<Pair<'a, Rule>> {
+        pairs
+            .next()
+            .ok_or_else(|| parser_error("Cannot get inner.", &previous))
+    }
+}
+
+impl FromStr for Ast {
+    type Err = Error<Rule>;
+
+    fn from_str(source: &str) -> ParseResult<Self> {
+        let pairs = CollyParser::parse(Rule::File, source)?;
+        Ast::try_from(pairs)
+    }
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     SuperExpression(SuperExpression),
     Assign(Assign),
@@ -78,7 +101,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
 
 impl Statement {
     fn from_super_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::inner_for_pair(pair)?;
+        let inner = Ast::first_inner_for_pair(pair)?;
         Ok(Statement::SuperExpression(inner.try_into()?))
     }
 
@@ -88,6 +111,7 @@ impl Statement {
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub enum SuperExpression {
     Expression(Expression),
     Method(MethodCall),
@@ -107,7 +131,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for SuperExpression {
 
 impl SuperExpression {
     pub fn from_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::inner_for_pair(pair)?;
+        let inner = Ast::first_inner_for_pair(pair)?;
         Ok(SuperExpression::Expression(inner.try_into()?))
     }
 
@@ -117,8 +141,12 @@ impl SuperExpression {
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
-    PropertyGetter(PropertyGetter),
+    PropertyGetter {
+        assignee: Box<Expression>,
+        identifier: Identifier,
+    },
     Boolean(bool),
     Identifier(Identifier),
     Variable(Identifier),
@@ -158,9 +186,20 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
 
 impl Expression {
     pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::inner_for_pair(pair)?;
-        dbg!(&inner);
-        Ok(Expression::PropertyGetter(inner.try_into()?))
+        let mut inner = pair.clone().into_inner();
+        let assignee: Box<Expression> = Box::new(Ast::next_pair(&mut inner, &pair)?.try_into()?);
+        let raw_identifier = Ast::next_pair(&mut inner, &pair)?;
+        if let Expression::Identifier(identifier) = raw_identifier.clone().try_into()? {
+            return Ok(Expression::PropertyGetter {
+                assignee,
+                identifier,
+            });
+        }
+
+        Err(parser_error(
+            "Cannot parse property getter",
+            &raw_identifier,
+        ))
     }
 
     pub fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -168,11 +207,12 @@ impl Expression {
     }
 
     pub fn from_identifier(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        Ok(Expression::Identifier(pair.into()))
     }
 
     pub fn from_variable(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let inner = Ast::first_inner_for_pair(pair)?;
+        Ok(Expression::Variable(inner.into()))
     }
 
     pub fn from_pattern_string(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -180,7 +220,8 @@ impl Expression {
     }
 
     pub fn from_number(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let number: f64 = pair.as_str().parse().unwrap();
+        Ok(Expression::Number(number))
     }
 
     pub fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -196,7 +237,7 @@ impl Expression {
     }
 
     pub fn from_mixer(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        Ok(Expression::Mixer)
     }
 
     pub fn from_properties(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -213,20 +254,17 @@ impl Expression {
 }
 
 //
-pub struct PropertyGetter {
-    pub assignee: Box<Expression>,
-    pub identifier: Identifier,
-}
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub struct Identifier(pub String);
 
-impl<'a> TryFrom<Pair<'a, Rule>> for PropertyGetter {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+impl<'a> From<Pair<'a, Rule>> for Identifier {
+    fn from(pair: Pair<Rule>) -> Self {
+        Identifier(pair.as_str().to_string())
     }
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub struct MethodCall {
     pub caller: Expression,
     pub callee: Vec<FunctionExpression>,
@@ -241,6 +279,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for MethodCall {
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub enum Assign {
     Pattern(Expression, PatternSuperExpression),
     Variable {
@@ -261,20 +300,25 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Assign {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Properties(HashMap<Key, Value>);
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Key(Identifier);
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Value {
     SuperExpression(SuperExpression),
     PatternExpression,
 }
 
-pub struct Identifier(pub String);
-
+#[derive(Debug, Clone, PartialEq)]
 pub enum PatternSuperExpression {
     ExpressionList(Vec<PatternExpression>),
     Expression(PatternExpression),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct PatternExpression {
     pub pattern: Pattern,
     pub inner_method: Option<FunctionExpression>,
@@ -282,16 +326,19 @@ pub struct PatternExpression {
     pub properties: Option<Properties>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct Pattern {
     pub inner: Vec<Event>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     Chord(Vec<Event>),
     Group(Vec<PatternSymbol>),
     ParenthesisedEvent(Vec<Event>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum PatternSymbol {
     EventMethod(EventMethod),
     Octave(Octave),
@@ -302,6 +349,7 @@ pub enum PatternSymbol {
     Modulation(Modulation),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum EventMethod {
     Tie,
     Dot,
@@ -309,16 +357,19 @@ pub enum EventMethod {
     Divide,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Octave {
     Up,
     Down,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Alteration {
     Up,
     Down,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Modulation {
     Down,
     Up,
@@ -328,6 +379,7 @@ pub enum Modulation {
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub enum FunctionExpression {
     Function(FunctionCall),
     FunctionList(Vec<FunctionCall>),
@@ -337,11 +389,10 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::inner_for_pair(pair)?;
-        match inner.as_rule() {
-            Rule::FunctionCall => FunctionExpression::from_func_call(inner),
-            Rule::FunctionListCall => FunctionExpression::from_func_call_list(inner),
-            _ => Ast::parse_rule_error::<Self>(&inner),
+        match pair.as_rule() {
+            Rule::FunctionCall => FunctionExpression::from_func_call(pair),
+            Rule::FunctionListCall => FunctionExpression::from_func_call_list(pair),
+            _ => Ast::parse_rule_error::<Self>(&pair),
         }
     }
 }
@@ -359,6 +410,7 @@ impl FunctionExpression {
 }
 
 //
+#[derive(Debug, Clone, PartialEq)]
 pub struct FunctionCall {
     pub identifier: Box<Expression>,
     pub parameters: Option<Vec<Expression>>,

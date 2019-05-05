@@ -1,4 +1,4 @@
-File = _{ SOI ~ NEWLINE* ~ (Statement ~ NEWLINE+) * ~ Statement? ~ EOI }
+File = _{ SOI ~ NEWLINE* ~ (Statement ~ NEWLINE+)* ~ Statement? ~ EOI }
 Statement = {
 	AssignStatement
     | SuperExpression
