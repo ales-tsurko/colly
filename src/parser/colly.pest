@@ -1,8 +1,7 @@
 File = _{ SOI ~ NEWLINE* ~ (Statement ~ NEWLINE+) * ~ Statement? ~ EOI }
 Statement = {
 	AssignStatement
-    | MethodCall
-    | FunctionExpression
+    | SuperExpression
 }
 AssignStatement = { PatternAssignment | VariableAssignment | PropertiesAssignment }
 
@@ -22,12 +21,13 @@ Expression = {
     | Track 
     | Mixer
     | Properties
-    | Array
-    | FunctionExpression }
+    | FunctionExpression
+    | Array }
 FunctionExpression = { FunctionCall | FunctionListCall }
 FunctionListCall = { "[" ~ NEWLINE* ~ FunctionExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ FunctionExpression ~ NEWLINE*)* ~ "]" }
-FunctionCall = { (PropertyGetter | Identifier | Variable) 
-    | "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
+FunctionCall = { FunctionCallIndirect | FunctionCallDirect }
+FunctionCallIndirect = { PropertyGetter | Identifier | Variable }
+FunctionCallDirect = { "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
 Boolean = { "true" | "false" }
 PatternSlot = ${ Track ~ "." ~ UnsignedInt }
 Track = ${ Mixer ~ UnsignedInt }
@@ -89,3 +89,4 @@ Alteration = { "+" | "-" }
 EventMethod = { "_" | "." | "*" | ":" }
 Modulation = { "p" | "F" | "<" | ">" | LiteralModulation }
 LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
+
