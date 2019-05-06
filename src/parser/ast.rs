@@ -305,8 +305,6 @@ impl FunctionExpression {
             .into_iter()
             .map(FunctionCall::try_from)
             .collect();
-        // dbg!(&expressions);
-        // unimplemented!()
         Ok(FunctionExpression::FunctionList(func_calls?))
     }
 }
