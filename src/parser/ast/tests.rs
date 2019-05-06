@@ -66,15 +66,6 @@ fn test_parse_mixer() {
 }
 
 #[test]
-fn test_parse_identifier() {
-    let ast: Ast = "foo".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
-        Expression::Identifier(Identifier("foo".into())),
-    ))];
-    assert_eq!(ast.0, expected);
-}
-
-#[test]
 fn test_parse_variable() {
     let ast: Ast = ":foo".parse().unwrap();
     let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
@@ -115,4 +106,121 @@ fn test_parse_patttern_slot() {
         Expression::PatternSlot((0, 1)),
     ))];
     assert_eq!(ast.0, expected);
+}
+
+#[test]
+fn test_parse_function_expression() {
+    let ast: Ast = "foo".parse().unwrap();
+    let expected = expected_from_func_call(FunctionCall {
+        identifier: Identifier("foo".to_string()),
+        parameters: Vec::new(),
+    });
+    assert_eq!(ast.0, expected);
+
+    let ast: Ast = "(foo bar)".parse().unwrap();
+    let expected = expected_from_func_call(FunctionCall {
+        identifier: Identifier("foo".to_string()),
+        parameters: vec![expression_from_func_call(FunctionCall {
+            identifier: Identifier("bar".to_string()),
+            parameters: Vec::new(),
+        })],
+    });
+    assert_eq!(ast.0, expected);
+
+    let ast: Ast = "(foo true)".parse().unwrap();
+    let expected = expected_from_func_call(FunctionCall {
+        identifier: Identifier("foo".to_string()),
+        parameters: vec![Expression::Boolean(true)],
+    });
+    assert_eq!(ast.0, expected);
+
+    let ast: Ast = "(foo 1 (bar 2 false))".parse().unwrap();
+    let expected = expected_from_func_call(FunctionCall {
+        identifier: Identifier("foo".to_string()),
+        parameters: vec![
+            Expression::Number(1.0),
+            Expression::Function(FunctionExpression::Function(FunctionCall {
+                identifier: Identifier("bar".to_string()),
+                parameters: vec![Expression::Number(2.0), Expression::Boolean(false)],
+            })),
+        ],
+    });
+    assert_eq!(ast.0, expected);
+
+    fn expected_from_func_call(value: FunctionCall) -> Vec<Statement> {
+        vec![Statement::SuperExpression(SuperExpression::Expression(
+            Expression::Function(FunctionExpression::Function(value)),
+        ))]
+    }
+}
+
+#[test]
+fn test_parse_function_list() {
+    let ast: Ast = "[foo, bar]".parse().unwrap();
+    let expected = expected_from_func_calls(vec![
+        FunctionCall {
+            identifier: Identifier("foo".to_string()),
+            parameters: Vec::new(),
+        },
+        FunctionCall {
+            identifier: Identifier("bar".to_string()),
+            parameters: Vec::new(),
+        },
+    ]);
+    assert_eq!(ast.0, expected);
+
+    let ast: Ast = "[foo, (bar true), (baz 1 (waldo 2 3 [fred, (corge false)]))]"
+        .parse()
+        .unwrap();
+    let expected = expected_from_func_calls(vec![
+        FunctionCall {
+            identifier: Identifier("foo".to_string()),
+            parameters: Vec::new(),
+        },
+        FunctionCall {
+            identifier: Identifier("bar".to_string()),
+            parameters: vec![Expression::Boolean(true)],
+        },
+        FunctionCall {
+            identifier: Identifier("baz".to_string()),
+            parameters: vec![
+                Expression::Number(1.0),
+                expression_from_func_call(FunctionCall {
+                    identifier: Identifier("waldo".to_string()),
+                    parameters: vec![
+                        Expression::Number(2.0),
+                        Expression::Number(3.0),
+                        expression_from_func_calls(vec![
+                            //ohmy
+                            FunctionCall {
+                                identifier: Identifier("fred".to_string()),
+                                parameters: Vec::new(),
+                            },
+                            FunctionCall {
+                                identifier: Identifier("corge".to_string()),
+                                parameters: vec![Expression::Boolean(false)],
+                            },
+                        ]),
+                    ],
+                }),
+            ],
+        },
+    ]);
+    assert_eq!(ast.0, expected);
+
+    fn expected_from_func_calls(value: Vec<FunctionCall>) -> Vec<Statement> {
+        vec![Statement::SuperExpression(SuperExpression::Expression(
+            Expression::Function(FunctionExpression::FunctionList(value)),
+        ))]
+    }
+}
+
+#[allow(dead_code)]
+fn expression_from_func_call(func_call: FunctionCall) -> Expression {
+    Expression::Function(FunctionExpression::Function(func_call))
+}
+
+#[allow(dead_code)]
+fn expression_from_func_calls(func_calls: Vec<FunctionCall>) -> Expression {
+    Expression::Function(FunctionExpression::FunctionList(func_calls))
 }

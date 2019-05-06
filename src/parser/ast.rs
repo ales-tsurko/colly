@@ -168,6 +168,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
         match pair.as_rule() {
             Rule::PropertyGetter => Expression::from_property_getter(pair),
             Rule::Boolean => Expression::from_boolean(pair),
+            Rule::FunctionExpression => Expression::from_function_expression(pair),
             Rule::Identifier => Expression::from_identifier(pair),
             Rule::Variable => Expression::from_variable(pair),
             Rule::PatternString => Expression::from_pattern_string(pair),
@@ -175,9 +176,8 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
             Rule::String => Expression::from_string(pair),
             Rule::PatternSlot => Expression::from_pattern_slot(pair),
             Rule::Track => Expression::from_track(pair),
-            Rule::Mixer => Expression::from_mixer(pair),
+            Rule::Mixer => Ok(Expression::Mixer),
             Rule::Properties => Expression::from_properties(pair),
-            Rule::FunctionExpression => Expression::from_function_expression(pair),
             Rule::Array => Expression::from_array(pair),
             _ => Ast::parse_rule_error::<Self>(&pair),
         }
@@ -249,16 +249,13 @@ impl Expression {
         Ok(Expression::Track(track_number))
     }
 
-    pub fn from_mixer(pair: Pair<Rule>) -> ParseResult<Self> {
-        Ok(Expression::Mixer)
-    }
-
     pub fn from_properties(pair: Pair<Rule>) -> ParseResult<Self> {
         unimplemented!()
     }
 
     pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let inner = Ast::first_inner_for_pair(pair)?;
+        Ok(Expression::Function(inner.try_into()?))
     }
 
     pub fn from_array(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -273,6 +270,68 @@ pub struct Identifier(pub String);
 impl<'a> From<Pair<'a, Rule>> for Identifier {
     fn from(pair: Pair<Rule>) -> Self {
         Identifier(pair.as_str().to_string())
+    }
+}
+
+//
+#[derive(Debug, Clone, PartialEq)]
+pub enum FunctionExpression {
+    Function(FunctionCall),
+    FunctionList(Vec<FunctionCall>),
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        match pair.as_rule() {
+            Rule::FunctionCall => FunctionExpression::from_func_call(pair),
+            Rule::FunctionListCall => FunctionExpression::from_func_call_list(pair),
+            _ => Ast::parse_rule_error::<Self>(&pair),
+        }
+    }
+}
+
+impl FunctionExpression {
+    fn from_func_call(pair: Pair<Rule>) -> ParseResult<Self> {
+        Ok(FunctionExpression::Function(pair.try_into()?))
+    }
+
+    fn from_func_call_list(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = pair.clone().into_inner();
+        let unparsed_funcs: ParseResult<Vec<Pair<Rule>>> =
+            inner.map(Ast::first_inner_for_pair).collect();
+        let func_calls: ParseResult<Vec<FunctionCall>> = unparsed_funcs?
+            .into_iter()
+            .map(FunctionCall::try_from)
+            .collect();
+        // dbg!(&expressions);
+        // unimplemented!()
+        Ok(FunctionExpression::FunctionList(func_calls?))
+    }
+}
+
+//
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionCall {
+    pub identifier: Identifier,
+    pub parameters: Vec<Expression>,
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        let mut inner = pair.clone().into_inner();
+        let identifier: Identifier = Ast::next_pair(&mut inner, &pair)?.into();
+        let expressions: ParseResult<Vec<Pair<Rule>>> =
+            inner.map(Ast::first_inner_for_pair).collect();
+        let params: ParseResult<Vec<Expression>> =
+            expressions?.into_iter().map(Expression::try_from).collect();
+        Ok(FunctionCall {
+            identifier,
+            parameters: params?,
+        })
     }
 }
 
@@ -389,51 +448,4 @@ pub enum Modulation {
     Crescendo,
     Diminuendo,
     Literal(f64),
-}
-
-//
-#[derive(Debug, Clone, PartialEq)]
-pub enum FunctionExpression {
-    Function(FunctionCall),
-    FunctionList(Vec<FunctionCall>),
-}
-
-impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
-            Rule::FunctionCall => FunctionExpression::from_func_call(pair),
-            Rule::FunctionListCall => FunctionExpression::from_func_call_list(pair),
-            _ => Ast::parse_rule_error::<Self>(&pair),
-        }
-    }
-}
-
-impl FunctionExpression {
-    fn from_func_call(pair: Pair<Rule>) -> ParseResult<Self> {
-        Ok(FunctionExpression::Function(pair.try_into()?))
-    }
-
-    fn from_func_call_list(pair: Pair<Rule>) -> ParseResult<Self> {
-        let functions: ParseResult<Vec<FunctionCall>> =
-            pair.into_inner().map(FunctionCall::try_from).collect();
-        Ok(FunctionExpression::FunctionList(functions?))
-    }
-}
-
-//
-#[derive(Debug, Clone, PartialEq)]
-pub struct FunctionCall {
-    pub identifier: Box<Expression>,
-    pub parameters: Option<Vec<Expression>>,
-}
-
-impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        dbg!(&pair);
-        unimplemented!()
-    }
 }

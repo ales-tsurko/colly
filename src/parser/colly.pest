@@ -12,6 +12,7 @@ MethodCall = { Expression ~ FunctionExpression+ }
 Expression = { 
     PropertyGetter
     | Boolean
+    | FunctionExpression
     | Identifier 
     | Variable 
     | PatternString 
@@ -21,13 +22,10 @@ Expression = {
     | Track 
     | Mixer
     | Properties
-    | FunctionExpression
     | Array }
 FunctionExpression = { FunctionCall | FunctionListCall }
 FunctionListCall = { "[" ~ NEWLINE* ~ FunctionExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ FunctionExpression ~ NEWLINE*)* ~ "]" }
-FunctionCall = { FunctionCallIndirect | FunctionCallDirect }
-FunctionCallIndirect = { PropertyGetter | Identifier | Variable }
-FunctionCallDirect = { "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
+FunctionCall = { Identifier | "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
 Boolean = { "true" | "false" }
 PatternSlot = ${ Track ~ "." ~ UnsignedInt }
 Track = ${ Mixer ~ UnsignedInt }
@@ -89,4 +87,5 @@ Alteration = { "+" | "-" }
 EventMethod = { "_" | "." | "*" | ":" }
 Modulation = { "p" | "F" | "<" | ">" | LiteralModulation }
 LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
+
 
