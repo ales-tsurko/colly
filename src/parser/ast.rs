@@ -232,11 +232,21 @@ impl Expression {
     }
 
     pub fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let mut inner = pair.clone().into_inner();
+        if let Expression::Track(track) =
+            Expression::from_track(Ast::next_pair(&mut inner, &pair)?)?
+        {
+            let slot_number: u64 = Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+            return Ok(Expression::PatternSlot((track, slot_number)));
+        }
+        Ast::parse_rule_error(&pair)
     }
 
     pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let mut inner = pair.clone().into_inner();
+        let _ = Ast::next_pair(&mut inner, &pair)?;
+        let track_number: u64 = Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+        Ok(Expression::Track(track_number))
     }
 
     pub fn from_mixer(pair: Pair<Rule>) -> ParseResult<Self> {

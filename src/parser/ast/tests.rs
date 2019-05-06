@@ -98,3 +98,21 @@ fn test_parse_property_getter() {
         ))]
     }
 }
+
+#[test]
+fn test_parse_track() {
+    let ast: Ast = "$0".parse().unwrap();
+    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
+        Expression::Track(0),
+    ))];
+    assert_eq!(ast.0, expected);
+}
+
+#[test]
+fn test_parse_patttern_slot() {
+    let ast: Ast = "$0.1".parse().unwrap();
+    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
+        Expression::PatternSlot((0, 1)),
+    ))];
+    assert_eq!(ast.0, expected);
+}
