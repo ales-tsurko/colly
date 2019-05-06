@@ -59,18 +59,19 @@ fn test_parse_string() {
 #[test]
 fn test_parse_mixer() {
     let ast: Ast = "$".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
-        Expression::Mixer,
-    ))];
+    let expected = vec![Statement::SuperExpression(
+        SuperExpression::Expression(Expression::Mixer),
+    )];
     assert_eq!(ast.0, expected);
 }
 
 #[test]
 fn test_parse_variable() {
     let ast: Ast = ":foo".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
-        Expression::Variable(Identifier("foo".into())),
-    ))];
+    let expected =
+        vec![Statement::SuperExpression(SuperExpression::Expression(
+            Expression::Variable(Identifier("foo".into())),
+        ))];
     assert_eq!(ast.0, expected);
 }
 
@@ -93,18 +94,18 @@ fn test_parse_property_getter() {
 #[test]
 fn test_parse_track() {
     let ast: Ast = "$0".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
-        Expression::Track(0),
-    ))];
+    let expected = vec![Statement::SuperExpression(
+        SuperExpression::Expression(Expression::Track(0)),
+    )];
     assert_eq!(ast.0, expected);
 }
 
 #[test]
 fn test_parse_patttern_slot() {
     let ast: Ast = "$0.1".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(SuperExpression::Expression(
-        Expression::PatternSlot((0, 1)),
-    ))];
+    let expected = vec![Statement::SuperExpression(
+        SuperExpression::Expression(Expression::PatternSlot((0, 1))),
+    )];
     assert_eq!(ast.0, expected);
 }
 
@@ -141,7 +142,10 @@ fn test_parse_function_expression() {
             Expression::Number(1.0),
             Expression::Function(FunctionExpression::Function(FunctionCall {
                 identifier: Identifier("bar".to_string()),
-                parameters: vec![Expression::Number(2.0), Expression::Boolean(false)],
+                parameters: vec![
+                    Expression::Number(2.0),
+                    Expression::Boolean(false),
+                ],
             })),
         ],
     });
@@ -169,9 +173,10 @@ fn test_parse_function_list() {
     ]);
     assert_eq!(ast.0, expected);
 
-    let ast: Ast = "[foo, (bar true), (baz 1 (waldo 2 3 [fred, (corge false)]))]"
-        .parse()
-        .unwrap();
+    let ast: Ast =
+        "[foo, (bar true), (baz 1 (waldo 2 3 [fred, (corge false)]))]"
+            .parse()
+            .unwrap();
     let expected = expected_from_func_calls(vec![
         FunctionCall {
             identifier: Identifier("foo".to_string()),

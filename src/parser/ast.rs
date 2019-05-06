@@ -168,7 +168,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
         match pair.as_rule() {
             Rule::PropertyGetter => Expression::from_property_getter(pair),
             Rule::Boolean => Expression::from_boolean(pair),
-            Rule::FunctionExpression => Expression::from_function_expression(pair),
+            Rule::FunctionExpression => {
+                Expression::from_function_expression(pair)
+            }
             Rule::Identifier => Expression::from_identifier(pair),
             Rule::Variable => Expression::from_variable(pair),
             Rule::PatternString => Expression::from_pattern_string(pair),
@@ -187,9 +189,12 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
 impl Expression {
     pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
-        let assignee: Box<Expression> = Box::new(Ast::next_pair(&mut inner, &pair)?.try_into()?);
+        let assignee: Box<Expression> =
+            Box::new(Ast::next_pair(&mut inner, &pair)?.try_into()?);
         let raw_identifier = Ast::next_pair(&mut inner, &pair)?;
-        if let Expression::Identifier(property_id) = raw_identifier.clone().try_into()? {
+        if let Expression::Identifier(property_id) =
+            raw_identifier.clone().try_into()?
+        {
             return Ok(Expression::PropertyGetter {
                 assignee,
                 property_id,
@@ -236,7 +241,8 @@ impl Expression {
         if let Expression::Track(track) =
             Expression::from_track(Ast::next_pair(&mut inner, &pair)?)?
         {
-            let slot_number: u64 = Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+            let slot_number: u64 =
+                Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
             return Ok(Expression::PatternSlot((track, slot_number)));
         }
         Ast::parse_rule_error(&pair)
@@ -245,7 +251,8 @@ impl Expression {
     pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
         let _ = Ast::next_pair(&mut inner, &pair)?;
-        let track_number: u64 = Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+        let track_number: u64 =
+            Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
         Ok(Expression::Track(track_number))
     }
 
@@ -286,7 +293,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         match pair.as_rule() {
             Rule::FunctionCall => FunctionExpression::from_func_call(pair),
-            Rule::FunctionListCall => FunctionExpression::from_func_call_list(pair),
+            Rule::FunctionListCall => {
+                FunctionExpression::from_func_call_list(pair)
+            }
             _ => Ast::parse_rule_error::<Self>(&pair),
         }
     }
