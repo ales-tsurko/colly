@@ -1,18 +1,15 @@
 #[cfg(test)]
 mod tests;
-use crate::parser::CollyParser;
+use crate::parser::{CollyParser, ParseResult};
 use crate::parser::Rule;
-use crate::parser_error;
 use pest::Parser;
 use pest::{
-    error::{Error, ErrorVariant},
+    error::Error,
     iterators::{Pair, Pairs},
 };
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-
-type ParseResult<T> = Result<T, Error<Rule>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast(pub Vec<Statement>);
@@ -23,51 +20,13 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
         let raw_statements: ParseResult<Vec<Pair<Rule>>> = pairs
             .filter(|pair| pair.as_rule() == Rule::Statement)
-            .map(Ast::first_inner_for_pair)
+            .map(CollyParser::first_inner_for_pair)
             .collect();
         let statements: ParseResult<Vec<Statement>> = raw_statements?
             .into_iter()
             .map(Statement::try_from)
             .collect();
         Ok(Ast(statements?))
-    }
-}
-
-impl Ast {
-    pub fn parse_rule_error<T>(pair: &Pair<Rule>) -> ParseResult<T> {
-        Err(parser_error(
-            &format!("Error parsing {:?}", pair.as_rule()),
-            &pair,
-        ))
-    }
-
-    pub fn assert_rule(expected: Rule, pair: &Pair<Rule>) -> ParseResult<()> {
-        if pair.as_rule() == expected {
-            Ok(())
-        } else {
-            Ast::parse_rule_error(&pair)
-        }
-    }
-
-    pub fn first_inner_for_pair(pair: Pair<Rule>) -> ParseResult<Pair<Rule>> {
-        let span = pair.as_span();
-        pair.into_inner().next().ok_or_else(|| {
-            Error::new_from_span(
-                ErrorVariant::CustomError {
-                    message: String::from("Cannot get inner."),
-                },
-                span,
-            )
-        })
-    }
-
-    pub fn next_pair<'a>(
-        pairs: &mut Pairs<'a, Rule>,
-        previous: &Pair<'a, Rule>,
-    ) -> ParseResult<Pair<'a, Rule>> {
-        pairs
-            .next()
-            .ok_or_else(|| parser_error("Cannot get inner.", &previous))
     }
 }
 
@@ -94,14 +53,14 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
         match pair.as_rule() {
             Rule::SuperExpression => Statement::from_super_expression(pair),
             Rule::AssignStatement => Statement::from_assign(pair),
-            _ => Ast::parse_rule_error::<Self>(&pair),
+            _ => CollyParser::rule_error::<Self>(&pair),
         }
     }
 }
 
 impl Statement {
     fn from_super_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::first_inner_for_pair(pair)?;
+        let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(Statement::SuperExpression(inner.try_into()?))
     }
 
@@ -124,14 +83,14 @@ impl<'a> TryFrom<Pair<'a, Rule>> for SuperExpression {
         match pair.as_rule() {
             Rule::Expression => SuperExpression::from_expression(pair),
             Rule::MethodCall => SuperExpression::from_method_call(pair),
-            _ => Ast::parse_rule_error::<Self>(&pair),
+            _ => CollyParser::rule_error::<Self>(&pair),
         }
     }
 }
 
 impl SuperExpression {
     pub fn from_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::first_inner_for_pair(pair)?;
+        let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(SuperExpression::Expression(inner.try_into()?))
     }
 
@@ -181,7 +140,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
             Rule::Mixer => Ok(Expression::Mixer),
             Rule::Properties => Expression::from_properties(pair),
             Rule::Array => Expression::from_array(pair),
-            _ => Ast::parse_rule_error::<Self>(&pair),
+            _ => CollyParser::rule_error::<Self>(&pair),
         }
     }
 }
@@ -190,8 +149,8 @@ impl Expression {
     pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
         let assignee: Box<Expression> =
-            Box::new(Ast::next_pair(&mut inner, &pair)?.try_into()?);
-        let raw_identifier = Ast::next_pair(&mut inner, &pair)?;
+            Box::new(CollyParser::next_pair(&mut inner, &pair)?.try_into()?);
+        let raw_identifier = CollyParser::next_pair(&mut inner, &pair)?;
         if let Expression::Identifier(property_id) =
             raw_identifier.clone().try_into()?
         {
@@ -201,7 +160,7 @@ impl Expression {
             });
         }
 
-        Err(parser_error(
+        Err(CollyParser::error(
             "Cannot parse property getter",
             &raw_identifier,
         ))
@@ -217,7 +176,7 @@ impl Expression {
     }
 
     pub fn from_variable(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::first_inner_for_pair(pair)?;
+        let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(Expression::Variable(inner.into()))
     }
 
@@ -231,7 +190,7 @@ impl Expression {
     }
 
     pub fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::first_inner_for_pair(pair)?;
+        let inner = CollyParser::first_inner_for_pair(pair)?;
         let value: String = inner.as_str().parse().unwrap();
         Ok(Expression::String(value))
     }
@@ -239,20 +198,20 @@ impl Expression {
     pub fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
         if let Expression::Track(track) =
-            Expression::from_track(Ast::next_pair(&mut inner, &pair)?)?
+            Expression::from_track(CollyParser::next_pair(&mut inner, &pair)?)?
         {
             let slot_number: u64 =
-                Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+                CollyParser::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
             return Ok(Expression::PatternSlot((track, slot_number)));
         }
-        Ast::parse_rule_error(&pair)
+        CollyParser::rule_error(&pair)
     }
 
     pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
-        let _ = Ast::next_pair(&mut inner, &pair)?;
+        let _ = CollyParser::next_pair(&mut inner, &pair)?;
         let track_number: u64 =
-            Ast::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+            CollyParser::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
         Ok(Expression::Track(track_number))
     }
 
@@ -261,7 +220,7 @@ impl Expression {
     }
 
     pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = Ast::first_inner_for_pair(pair)?;
+        let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(Expression::Function(inner.try_into()?))
     }
 
@@ -296,7 +255,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
             Rule::FunctionListCall => {
                 FunctionExpression::from_func_call_list(pair)
             }
-            _ => Ast::parse_rule_error::<Self>(&pair),
+            _ => CollyParser::rule_error::<Self>(&pair),
         }
     }
 }
@@ -309,7 +268,7 @@ impl FunctionExpression {
     fn from_func_call_list(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.clone().into_inner();
         let unparsed_funcs: ParseResult<Vec<Pair<Rule>>> =
-            inner.map(Ast::first_inner_for_pair).collect();
+            inner.map(CollyParser::first_inner_for_pair).collect();
         let func_calls: ParseResult<Vec<FunctionCall>> = unparsed_funcs?
             .into_iter()
             .map(FunctionCall::try_from)
@@ -330,9 +289,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
-        let identifier: Identifier = Ast::next_pair(&mut inner, &pair)?.into();
+        let identifier: Identifier = CollyParser::next_pair(&mut inner, &pair)?.into();
         let expressions: ParseResult<Vec<Pair<Rule>>> =
-            inner.map(Ast::first_inner_for_pair).collect();
+            inner.map(CollyParser::first_inner_for_pair).collect();
         let params: ParseResult<Vec<Expression>> =
             expressions?.into_iter().map(Expression::try_from).collect();
         Ok(FunctionCall {
