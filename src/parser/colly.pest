@@ -30,13 +30,13 @@ Boolean = { "true" | "false" }
 PatternSlot = ${ Track ~ "." ~ UnsignedInt }
 Track = ${ Mixer ~ UnsignedInt }
 Mixer = { "$" }
-Array = { "[" ~ NEWLINE* ~ ArrayInner ~ NEWLINE* ~ ("," ~ NEWLINE* ~ ArrayInner ~ NEWLINE*)* ~ "]" }
-ArrayInner = _{ SuperExpression }
+Array = { "[" ~ NEWLINE* ~ SuperExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ SuperExpression ~ NEWLINE*)* ~ "]" }
 PropertyGetter = { (Variable 
     | PatternString 
     | PatternSlot 
     | Track 
-    | Mixer) ~ NEWLINE* ~ ("." ~ NEWLINE* ~ Identifier ~ NEWLINE*)+ }
+    | Mixer
+    | Properties) ~ NEWLINE? ~ ("." ~ NEWLINE? ~ Identifier ~ NEWLINE?)+ }
 Properties = { "{" ~ NEWLINE* ~ KvPair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ KvPair)* ~ NEWLINE* ~ "}" }
 KvPair = { NEWLINE* ~ Identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
     SuperExpression

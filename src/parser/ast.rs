@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
-use crate::parser::{CollyParser, ParseResult};
 use crate::parser::Rule;
+use crate::parser::{CollyParser, ParseResult};
 use pest::Parser;
 use pest::{
     error::Error,
@@ -18,12 +18,13 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     type Error = Error<Rule>;
 
     fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
-        let raw_statements: ParseResult<Vec<Pair<Rule>>> = pairs
+        // let raw_statements: ParseResult<Vec<Pair<Rule>>> = pairs
+        //     .filter(|pair| pair.as_rule() == Rule::Statement)
+        //     .map(CollyParser::first_inner_for_pair)
+        //     .collect();
+        let statements: ParseResult<Vec<Statement>> = pairs
+            // .into_iter()a
             .filter(|pair| pair.as_rule() == Rule::Statement)
-            .map(CollyParser::first_inner_for_pair)
-            .collect();
-        let statements: ParseResult<Vec<Statement>> = raw_statements?
-            .into_iter()
             .map(Statement::try_from)
             .collect();
         Ok(Ast(statements?))
@@ -50,18 +51,18 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
-            Rule::SuperExpression => Statement::from_super_expression(pair),
-            Rule::AssignStatement => Statement::from_assign(pair),
-            _ => CollyParser::rule_error::<Self>(&pair),
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::SuperExpression => Statement::from_super_expression(inner),
+            Rule::AssignStatement => Statement::from_assign(inner),
+            _ => CollyParser::rule_error::<Self>(&inner),
         }
     }
 }
 
 impl Statement {
     fn from_super_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        Ok(Statement::SuperExpression(inner.try_into()?))
+        Ok(Statement::SuperExpression(pair.try_into()?))
     }
 
     fn from_assign(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -80,18 +81,18 @@ impl<'a> TryFrom<Pair<'a, Rule>> for SuperExpression {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
-            Rule::Expression => SuperExpression::from_expression(pair),
-            Rule::MethodCall => SuperExpression::from_method_call(pair),
-            _ => CollyParser::rule_error::<Self>(&pair),
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::Expression => SuperExpression::from_expression(inner),
+            Rule::MethodCall => SuperExpression::from_method_call(inner),
+            _ => CollyParser::rule_error::<Self>(&inner),
         }
     }
 }
 
 impl SuperExpression {
     pub fn from_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        Ok(SuperExpression::Expression(inner.try_into()?))
+        Ok(SuperExpression::Expression(pair.try_into()?))
     }
 
     pub fn from_method_call(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -124,6 +125,13 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        Expression::from_variant(inner)
+    }
+}
+
+impl Expression {
+    pub fn from_variant(pair: Pair<Rule>) -> ParseResult<Self> {
         match pair.as_rule() {
             Rule::PropertyGetter => Expression::from_property_getter(pair),
             Rule::Boolean => Expression::from_boolean(pair),
@@ -143,27 +151,17 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Expression {
             _ => CollyParser::rule_error::<Self>(&pair),
         }
     }
-}
 
-impl Expression {
     pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
-        let assignee: Box<Expression> =
-            Box::new(CollyParser::next_pair(&mut inner, &pair)?.try_into()?);
+        let assignee: Box<Expression> = Box::new(Expression::from_variant(
+            CollyParser::next_pair(&mut inner, &pair)?,
+        )?);
         let raw_identifier = CollyParser::next_pair(&mut inner, &pair)?;
-        if let Expression::Identifier(property_id) =
-            raw_identifier.clone().try_into()?
-        {
-            return Ok(Expression::PropertyGetter {
-                assignee,
-                property_id,
-            });
-        }
-
-        Err(CollyParser::error(
-            "Cannot parse property getter",
-            &raw_identifier,
-        ))
+        Ok(Expression::PropertyGetter {
+            assignee,
+            property_id: raw_identifier.into(),
+        })
     }
 
     pub fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -200,8 +198,10 @@ impl Expression {
         if let Expression::Track(track) =
             Expression::from_track(CollyParser::next_pair(&mut inner, &pair)?)?
         {
-            let slot_number: u64 =
-                CollyParser::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+            let slot_number: u64 = CollyParser::next_pair(&mut inner, &pair)?
+                .as_str()
+                .parse()
+                .unwrap();
             return Ok(Expression::PatternSlot((track, slot_number)));
         }
         CollyParser::rule_error(&pair)
@@ -210,8 +210,10 @@ impl Expression {
     pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
         let _ = CollyParser::next_pair(&mut inner, &pair)?;
-        let track_number: u64 =
-            CollyParser::next_pair(&mut inner, &pair)?.as_str().parse().unwrap();
+        let track_number: u64 = CollyParser::next_pair(&mut inner, &pair)?
+            .as_str()
+            .parse()
+            .unwrap();
         Ok(Expression::Track(track_number))
     }
 
@@ -220,12 +222,17 @@ impl Expression {
     }
 
     pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        Ok(Expression::Function(inner.try_into()?))
+        // let inner = CollyParser::first_inner_for_pair(pair)?;
+        Ok(Expression::Function(pair.try_into()?))
     }
 
     pub fn from_array(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        // dbg!(&pair);
+        // let inner = CollyParser::first_inner_for_pair(pair)?;
+        // dbg!(&inner);
+        let superexpressions: ParseResult<Vec<SuperExpression>> =
+            pair.into_inner().map(SuperExpression::try_from).collect();
+        Ok(Expression::Array(superexpressions?))
     }
 }
 
@@ -250,12 +257,13 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
-            Rule::FunctionCall => FunctionExpression::from_func_call(pair),
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::FunctionCall => FunctionExpression::from_func_call(inner),
             Rule::FunctionListCall => {
-                FunctionExpression::from_func_call_list(pair)
+                FunctionExpression::from_func_call_list(inner)
             }
-            _ => CollyParser::rule_error::<Self>(&pair),
+            _ => CollyParser::rule_error::<Self>(&inner),
         }
     }
 }
@@ -289,11 +297,10 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
-        let identifier: Identifier = CollyParser::next_pair(&mut inner, &pair)?.into();
-        let expressions: ParseResult<Vec<Pair<Rule>>> =
-            inner.map(CollyParser::first_inner_for_pair).collect();
+        let identifier: Identifier =
+            CollyParser::next_pair(&mut inner, &pair)?.into();
         let params: ParseResult<Vec<Expression>> =
-            expressions?.into_iter().map(Expression::try_from).collect();
+            inner.map(Expression::try_from).collect();
         Ok(FunctionCall {
             identifier,
             parameters: params?,

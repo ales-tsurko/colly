@@ -84,6 +84,9 @@ fn test_parse_property_getter() {
     });
     assert_eq!(ast.0, expected);
 
+    //TODO
+    // let ast: Ast = ":foo.bar.baz.fred".parse().unwrap();
+
     fn expected_from_expr(value: Expression) -> Vec<Statement> {
         vec![Statement::SuperExpression(SuperExpression::Expression(
             value,
@@ -220,6 +223,34 @@ fn test_parse_function_list() {
     }
 }
 
+#[test]
+fn test_parse_array() {
+    let ast: Ast = "[foo, 1, true, \"hello\", [1, 2], $16.19, 1.234]"
+        .parse()
+        .unwrap();
+    let expected = vec![Statement::SuperExpression(
+        SuperExpression::Expression(Expression::Array(vec![
+            superexpression_from_expression(expression_from_func_call(
+                FunctionCall {
+                    identifier: Identifier("foo".to_string()),
+                    parameters: Vec::new(),
+                },
+            )),
+            superexpression_from_expression(Expression::Number(1.0)),
+            superexpression_from_expression(Expression::String(
+                "hello".to_string(),
+            )),
+            superexpression_from_expression(Expression::Array(vec![
+                superexpression_from_expression(Expression::Number(1.0)),
+                superexpression_from_expression(Expression::Number(2.0)),
+            ])),
+            superexpression_from_expression(Expression::PatternSlot((16, 19))),
+            superexpression_from_expression(Expression::Number(1.234)),
+        ])),
+    )];
+    assert_eq!(ast.0, expected);
+}
+
 #[allow(dead_code)]
 fn expression_from_func_call(func_call: FunctionCall) -> Expression {
     Expression::Function(FunctionExpression::Function(func_call))
@@ -228,4 +259,9 @@ fn expression_from_func_call(func_call: FunctionCall) -> Expression {
 #[allow(dead_code)]
 fn expression_from_func_calls(func_calls: Vec<FunctionCall>) -> Expression {
     Expression::Function(FunctionExpression::FunctionList(func_calls))
+}
+
+#[allow(dead_code)]
+fn superexpression_from_expression(expr: Expression) -> SuperExpression {
+    SuperExpression::Expression(expr)
 }
