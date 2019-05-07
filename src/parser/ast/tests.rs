@@ -104,7 +104,7 @@ fn test_parse_track() {
 }
 
 #[test]
-fn test_parse_patttern_slot() {
+fn test_parse_pattern_slot() {
     let ast: Ast = "$0.1".parse().unwrap();
     let expected = vec![Statement::SuperExpression(
         SuperExpression::Expression(Expression::PatternSlot((0, 1))),
