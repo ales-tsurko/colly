@@ -237,6 +237,7 @@ fn test_parse_array() {
                 },
             )),
             superexpression_from_expression(Expression::Number(1.0)),
+            superexpression_from_expression(Expression::Boolean(true)),
             superexpression_from_expression(Expression::String(
                 "hello".to_string(),
             )),

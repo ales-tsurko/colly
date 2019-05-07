@@ -18,12 +18,7 @@ impl<'a> TryFrom<Pairs<'a, Rule>> for Ast {
     type Error = Error<Rule>;
 
     fn try_from(pairs: Pairs<Rule>) -> ParseResult<Self> {
-        // let raw_statements: ParseResult<Vec<Pair<Rule>>> = pairs
-        //     .filter(|pair| pair.as_rule() == Rule::Statement)
-        //     .map(CollyParser::first_inner_for_pair)
-        //     .collect();
         let statements: ParseResult<Vec<Statement>> = pairs
-            // .into_iter()a
             .filter(|pair| pair.as_rule() == Rule::Statement)
             .map(Statement::try_from)
             .collect();
@@ -222,14 +217,10 @@ impl Expression {
     }
 
     pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
-        // let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(Expression::Function(pair.try_into()?))
     }
 
     pub fn from_array(pair: Pair<Rule>) -> ParseResult<Self> {
-        // dbg!(&pair);
-        // let inner = CollyParser::first_inner_for_pair(pair)?;
-        // dbg!(&inner);
         let superexpressions: ParseResult<Vec<SuperExpression>> =
             pair.into_inner().map(SuperExpression::try_from).collect();
         Ok(Expression::Array(superexpressions?))
