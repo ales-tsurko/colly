@@ -63,26 +63,34 @@ fn test_parse_property_getter() {
         assignee: Box::new(Expression::Variable(Identifier("foo".into()))),
         property_id: vec![Identifier("bar".into())],
     };
-    let result: ParseResult<Expression> = parse_source_for_rule(":foo.bar", Rule::Expression);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule(":foo.bar", Rule::Expression);
     assert_eq!(expected, result.unwrap());
 
     let expected = Expression::PropertyGetter {
         assignee: Box::new(Expression::Variable(Identifier("foo".into()))),
-        property_id: vec![Identifier("bar".into()), Identifier("baz".into()), Identifier("fred".into())],
+        property_id: vec![
+            Identifier("bar".into()),
+            Identifier("baz".into()),
+            Identifier("fred".into()),
+        ],
     };
-    let result: ParseResult<Expression> = parse_source_for_rule(":foo.bar.baz.fred", Rule::Expression);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule(":foo.bar.baz.fred", Rule::Expression);
     assert_eq!(expected, result.unwrap());
 }
 
 #[test]
 fn test_parse_track() {
-    let result: ParseResult<Expression> = parse_source_for_rule("$0", Rule::Expression);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("$0", Rule::Expression);
     assert_eq!(Expression::Track(0), result.unwrap());
 }
 
 #[test]
 fn test_parse_pattern_slot() {
-    let result: ParseResult<Expression> = parse_source_for_rule("$0.1", Rule::Expression);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("$0.1", Rule::Expression);
     assert_eq!(Expression::PatternSlot((0, 1)), result.unwrap());
 }
 
@@ -92,17 +100,20 @@ fn test_parse_function_expression() {
         identifier: Identifier("foo".to_string()),
         parameters: Vec::new(),
     };
-    let result: ParseResult<FunctionCall> = parse_source_for_rule("foo", Rule::FunctionCall);
+    let result: ParseResult<FunctionCall> =
+        parse_source_for_rule("foo", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 
     let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
-        parameters: vec![expression_from_func_call(FunctionCall {
+        parameters: vec![FunctionCall {
             identifier: Identifier("bar".to_string()),
             parameters: Vec::new(),
-        })],
+        }
+        .into()],
     };
-    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo bar)", Rule::FunctionCall);
+    let result: ParseResult<FunctionCall> =
+        parse_source_for_rule("(foo bar)", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 
     let ast: Ast = "(foo true)".parse().unwrap();
@@ -110,7 +121,8 @@ fn test_parse_function_expression() {
         identifier: Identifier("foo".to_string()),
         parameters: vec![Expression::Boolean(true)],
     };
-    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo true)", Rule::FunctionCall);
+    let result: ParseResult<FunctionCall> =
+        parse_source_for_rule("(foo true)", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 
     let ast: Ast = "(foo 1 (bar 2 false))".parse().unwrap();
@@ -127,7 +139,8 @@ fn test_parse_function_expression() {
             })),
         ],
     };
-    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo 1 (bar 2 false))", Rule::FunctionCall);
+    let result: ParseResult<FunctionCall> =
+        parse_source_for_rule("(foo 1 (bar 2 false))", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 }
 
@@ -163,12 +176,12 @@ fn test_parse_function_list() {
             identifier: Identifier("baz".to_string()),
             parameters: vec![
                 Expression::Number(1.0),
-                expression_from_func_call(FunctionCall {
+                FunctionCall {
                     identifier: Identifier("waldo".to_string()),
                     parameters: vec![
                         Expression::Number(2.0),
                         Expression::Number(3.0),
-                        expression_from_func_calls(vec![
+                        vec![
                             //ohmy
                             FunctionCall {
                                 identifier: Identifier("fred".to_string()),
@@ -178,9 +191,11 @@ fn test_parse_function_list() {
                                 identifier: Identifier("corge".to_string()),
                                 parameters: vec![Expression::Boolean(false)],
                             },
-                        ]),
+                        ]
+                        .into(),
                     ],
-                }),
+                }
+                .into(),
             ],
         },
     ]);
@@ -199,42 +214,110 @@ fn test_parse_array() {
         .parse()
         .unwrap();
     let expected = vec![Statement::SuperExpression(
-        SuperExpression::Expression(Expression::Array(vec![
-            superexpression_from_expression(expression_from_func_call(
+        Expression::Array(vec![
+            SuperExpression::Expression(
                 FunctionCall {
                     identifier: Identifier("foo".to_string()),
                     parameters: Vec::new(),
-                },
-            )),
-            superexpression_from_expression(Expression::Number(1.0)),
-            superexpression_from_expression(Expression::Boolean(true)),
-            superexpression_from_expression(Expression::String(
-                "hello".to_string(),
-            )),
-            superexpression_from_expression(Expression::Array(vec![
-                superexpression_from_expression(Expression::Number(1.0)),
-                superexpression_from_expression(Expression::Number(2.0)),
-            ])),
-            superexpression_from_expression(Expression::PatternSlot((16, 19))),
-            superexpression_from_expression(Expression::Number(1.234)),
-        ])),
+                }
+                .into(),
+            ),
+            Expression::Number(1.0).into(),
+            Expression::Boolean(true).into(),
+            Expression::String("hello".to_string()).into(),
+            Expression::Array(vec![
+                Expression::Number(1.0).into(),
+                Expression::Number(2.0).into(),
+            ])
+            .into(),
+            Expression::PatternSlot((16, 19)).into(),
+            Expression::Number(1.234).into(),
+        ])
+        .into(),
     )];
     assert_eq!(ast.0, expected);
 }
 
-#[allow(dead_code)]
-fn expression_from_func_call(func_call: FunctionCall) -> Expression {
-    Expression::Function(FunctionExpression::Function(func_call))
+#[test]
+fn test_parse_properties() {
+    let source = "{foo: true, bar: \"hello\", baz: 1.0, fred: foo, ringo: [1, false], paul: {foo: 1, bar: false}}";
+    let result: ParseResult<Properties> =
+        parse_source_for_rule(source, Rule::Properties);
+    let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
+    map.insert(
+        Identifier("foo".into()),
+        PropertyValue::SuperExpression(Expression::Boolean(true).into()),
+    );
+    map.insert(
+        Identifier("bar".into()),
+        PropertyValue::SuperExpression(
+            Expression::String("hello".into()).into(),
+        ),
+    );
+    map.insert(
+        Identifier("baz".into()),
+        PropertyValue::SuperExpression(Expression::Number(1.0).into()),
+    );
+    map.insert(
+        Identifier("fred".into()),
+        PropertyValue::SuperExpression(SuperExpression::Expression(
+            FunctionCall {
+                identifier: Identifier("foo".into()),
+                parameters: Vec::new(),
+            }
+            .into(),
+        )),
+    );
+    map.insert(
+        Identifier("ringo".into()),
+        PropertyValue::SuperExpression(
+            Expression::Array(vec![
+                Expression::Number(1.0).into(),
+                Expression::Boolean(false).into(),
+            ])
+            .into(),
+        ),
+    );
+
+    let mut inner_properties: HashMap<Identifier, PropertyValue> =
+        HashMap::new();
+    inner_properties.insert(
+        Identifier("foo".into()),
+        PropertyValue::SuperExpression(Expression::Number(1.0).into()),
+    );
+    inner_properties.insert(
+        Identifier("bar".into()),
+        PropertyValue::SuperExpression(Expression::Boolean(false).into()),
+    );
+    map.insert(
+        Identifier("paul".into()),
+        PropertyValue::SuperExpression(
+            Expression::Properties(Properties(inner_properties)).into(),
+        ),
+    );
+
+    assert_eq!(Properties(map), result.unwrap());
 }
 
 #[allow(dead_code)]
-fn expression_from_func_calls(func_calls: Vec<FunctionCall>) -> Expression {
-    Expression::Function(FunctionExpression::FunctionList(func_calls))
+impl From<FunctionCall> for Expression {
+    fn from(func_call: FunctionCall) -> Self {
+        Expression::Function(FunctionExpression::Function(func_call))
+    }
 }
 
 #[allow(dead_code)]
-fn superexpression_from_expression(expr: Expression) -> SuperExpression {
-    SuperExpression::Expression(expr)
+impl From<Vec<FunctionCall>> for Expression {
+    fn from(func_calls: Vec<FunctionCall>) -> Self {
+        Expression::Function(FunctionExpression::FunctionList(func_calls))
+    }
+}
+
+#[allow(dead_code)]
+impl From<Expression> for SuperExpression {
+    fn from(expression: Expression) -> Self {
+        SuperExpression::Expression(expression)
+    }
 }
 
 #[allow(dead_code)]

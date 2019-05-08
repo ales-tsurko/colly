@@ -212,7 +212,7 @@ impl Expression {
     }
 
     pub fn from_properties(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        Ok(Expression::Properties(pair.try_into()?))
     }
 
     pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -300,6 +300,30 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
 
 //
 #[derive(Debug, Clone, PartialEq)]
+pub struct Properties(HashMap<Identifier, PropertyValue>);
+
+// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
+// pub struct PropertyKey(Identifier);
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PropertyValue {
+    SuperExpression(SuperExpression),
+    PatternExpression,
+}
+
+impl<'a> TryFrom<Pair<'a, Rule>> for Properties {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        dbg!(&pair);
+        // let inner = CollyParser::first_inner_for_pair(pair)?;
+        // Expression::from_variant(inner)
+        unimplemented!()
+    }
+}
+
+//
+#[derive(Debug, Clone, PartialEq)]
 pub struct MethodCall {
     pub caller: Expression,
     pub callee: Vec<FunctionExpression>,
@@ -333,18 +357,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Assign {
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         unimplemented!()
     }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Properties(HashMap<Key, Value>);
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct Key(Identifier);
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    SuperExpression(SuperExpression),
-    PatternExpression,
 }
 
 #[derive(Debug, Clone, PartialEq)]
