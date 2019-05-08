@@ -91,11 +91,11 @@ impl<'a> TryFrom<Pair<'a, Rule>> for SuperExpression {
 }
 
 impl SuperExpression {
-    pub fn from_expression(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_expression(pair: Pair<Rule>) -> ParseResult<Self> {
         Ok(SuperExpression::Expression(pair.try_into()?))
     }
 
-    pub fn from_method_call(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_method_call(pair: Pair<Rule>) -> ParseResult<Self> {
         Ok(SuperExpression::Method(pair.try_into()?))
     }
 }
@@ -152,85 +152,76 @@ impl Expression {
         }
     }
 
-    pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.into_inner();
-        let assignee: Box<Expression> = Box::new(Expression::from_variant(
-            inner.next().unwrap()
-        )?);
-        let ids: ParseResult<Vec<Identifier>> = inner.map(Identifier::try_from).collect();
+        let assignee: Box<Expression> =
+            Box::new(Expression::from_variant(inner.next().unwrap())?);
+        let ids: ParseResult<Vec<Identifier>> =
+            inner.map(Identifier::try_from).collect();
         Ok(Expression::PropertyGetter {
             assignee,
             property_id: ids?,
         })
     }
 
-    pub fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
         CollyParser::assert_rule(Rule::Boolean, &pair)?;
         let value: bool = pair.as_str().parse().unwrap();
         Ok(Expression::Boolean(value))
     }
 
-    pub fn from_identifier(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_identifier(pair: Pair<Rule>) -> ParseResult<Self> {
         Ok(Expression::Identifier(pair.try_into()?))
     }
 
-    pub fn from_variable(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_variable(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = CollyParser::first_inner_for_pair(pair)?;
         Ok(Expression::Variable(inner.try_into()?))
     }
 
-    pub fn from_pattern_string(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_pattern_string(pair: Pair<Rule>) -> ParseResult<Self> {
         unimplemented!()
     }
 
-    pub fn from_number(pair: Pair<Rule>) -> ParseResult<Self> {
-        CollyParser::assert_rule(Rule::Number, &pair)?;
+    fn from_number(pair: Pair<Rule>) -> ParseResult<Self> {
         let number: f64 = pair.as_str().parse().unwrap();
         Ok(Expression::Number(number))
     }
 
-    pub fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
-        CollyParser::assert_rule(Rule::String, &pair)?;
+    fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = CollyParser::first_inner_for_pair(pair)?;
         let value: String = inner.as_str().parse().unwrap();
         Ok(Expression::String(value))
     }
 
-    pub fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
-        CollyParser::assert_rule(Rule::PatternSlot, &pair)?;
+    fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.clone().into_inner();
         if let Expression::Track(track) =
             Expression::from_track(inner.next().unwrap())?
         {
-            let slot_number: u64 = inner.next().unwrap()
-                .as_str()
-                .parse()
-                .unwrap();
+            let slot_number: u64 =
+                inner.next().unwrap().as_str().parse().unwrap();
             return Ok(Expression::PatternSlot((track, slot_number)));
         }
         CollyParser::rule_error(&pair)
     }
 
-    pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
-        CollyParser::assert_rule(Rule::Track, &pair)?;
+    fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.into_inner();
         let _ = inner.next().unwrap();
-        let track_number: u64 = inner.next().unwrap()
-            .as_str()
-            .parse()
-            .unwrap();
+        let track_number: u64 = inner.next().unwrap().as_str().parse().unwrap();
         Ok(Expression::Track(track_number))
     }
 
-    pub fn from_properties(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_properties(pair: Pair<Rule>) -> ParseResult<Self> {
         Ok(Expression::Properties(pair.try_into()?))
     }
 
-    pub fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_function_expression(pair: Pair<Rule>) -> ParseResult<Self> {
         Ok(Expression::Function(pair.try_into()?))
     }
 
-    pub fn from_array(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_array(pair: Pair<Rule>) -> ParseResult<Self> {
         let superexpressions: ParseResult<Vec<SuperExpression>> =
             pair.into_inner().map(SuperExpression::try_from).collect();
         Ok(Expression::Array(superexpressions?))
@@ -301,7 +292,8 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.into_inner();
-        let identifier: ParseResult<Identifier> = inner.next().unwrap().try_into();
+        let identifier: ParseResult<Identifier> =
+            inner.next().unwrap().try_into();
         let params: ParseResult<Vec<Expression>> =
             inner.map(Expression::try_from).collect();
         Ok(FunctionCall {
@@ -331,8 +323,10 @@ impl Properties {
         pair: Pair<Rule>,
     ) -> ParseResult<(Identifier, PropertyValue)> {
         let mut inner = pair.into_inner();
-        let identifier: ParseResult<Identifier> = inner.next().unwrap().try_into();
-        let value: ParseResult<PropertyValue> = inner.next().unwrap().try_into();
+        let identifier: ParseResult<Identifier> =
+            inner.next().unwrap().try_into();
+        let value: ParseResult<PropertyValue> =
+            inner.next().unwrap().try_into();
 
         Ok((identifier?, value?))
     }

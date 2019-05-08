@@ -52,8 +52,8 @@ impl CollyParser {
         pairs: &mut Pairs<'a, Rule>,
         previous: &Pair<'a, Rule>,
     ) -> ParseResult<Pair<'a, Rule>> {
-        pairs
-            .next()
-            .ok_or_else(|| CollyParser::error("Cannot get next pair.", &previous))
+        pairs.next().ok_or_else(|| {
+            CollyParser::error("Cannot get next pair.", &previous)
+        })
     }
 }
