@@ -1,3 +1,8 @@
+// Below you'll see patterns like
+// inner.next().unwrap()
+// These unwraps are fine, because we relate on the parser rules,
+// which were checked on the parsing phase.
+
 #[cfg(test)]
 mod tests;
 use crate::parser::Rule;
@@ -148,28 +153,30 @@ impl Expression {
     }
 
     pub fn from_property_getter(pair: Pair<Rule>) -> ParseResult<Self> {
-        let mut inner = pair.clone().into_inner();
+        let mut inner = pair.into_inner();
         let assignee: Box<Expression> = Box::new(Expression::from_variant(
-            CollyParser::next_pair(&mut inner, &pair)?,
+            inner.next().unwrap()
         )?);
+        let ids: ParseResult<Vec<Identifier>> = inner.map(Identifier::try_from).collect();
         Ok(Expression::PropertyGetter {
             assignee,
-            property_id: inner.map(Identifier::from).collect(),
+            property_id: ids?,
         })
     }
 
     pub fn from_boolean(pair: Pair<Rule>) -> ParseResult<Self> {
+        CollyParser::assert_rule(Rule::Boolean, &pair)?;
         let value: bool = pair.as_str().parse().unwrap();
         Ok(Expression::Boolean(value))
     }
 
     pub fn from_identifier(pair: Pair<Rule>) -> ParseResult<Self> {
-        Ok(Expression::Identifier(pair.into()))
+        Ok(Expression::Identifier(pair.try_into()?))
     }
 
     pub fn from_variable(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = CollyParser::first_inner_for_pair(pair)?;
-        Ok(Expression::Variable(inner.into()))
+        Ok(Expression::Variable(inner.try_into()?))
     }
 
     pub fn from_pattern_string(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -177,22 +184,25 @@ impl Expression {
     }
 
     pub fn from_number(pair: Pair<Rule>) -> ParseResult<Self> {
+        CollyParser::assert_rule(Rule::Number, &pair)?;
         let number: f64 = pair.as_str().parse().unwrap();
         Ok(Expression::Number(number))
     }
 
     pub fn from_string(pair: Pair<Rule>) -> ParseResult<Self> {
+        CollyParser::assert_rule(Rule::String, &pair)?;
         let inner = CollyParser::first_inner_for_pair(pair)?;
         let value: String = inner.as_str().parse().unwrap();
         Ok(Expression::String(value))
     }
 
     pub fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
+        CollyParser::assert_rule(Rule::PatternSlot, &pair)?;
         let mut inner = pair.clone().into_inner();
         if let Expression::Track(track) =
-            Expression::from_track(CollyParser::next_pair(&mut inner, &pair)?)?
+            Expression::from_track(inner.next().unwrap())?
         {
-            let slot_number: u64 = CollyParser::next_pair(&mut inner, &pair)?
+            let slot_number: u64 = inner.next().unwrap()
                 .as_str()
                 .parse()
                 .unwrap();
@@ -202,9 +212,10 @@ impl Expression {
     }
 
     pub fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
-        let mut inner = pair.clone().into_inner();
-        let _ = CollyParser::next_pair(&mut inner, &pair)?;
-        let track_number: u64 = CollyParser::next_pair(&mut inner, &pair)?
+        CollyParser::assert_rule(Rule::Track, &pair)?;
+        let mut inner = pair.into_inner();
+        let _ = inner.next().unwrap();
+        let track_number: u64 = inner.next().unwrap()
             .as_str()
             .parse()
             .unwrap();
@@ -230,12 +241,12 @@ impl Expression {
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Identifier(pub String);
 
-impl<'a> From<Pair<'a, Rule>> for Identifier {
-    fn from(pair: Pair<Rule>) -> Self {
-        //TODO
-        //make it TryFrom
-        // CollyParser::assert_rule(Rule::Identifier, &pair)?;
-        Identifier(pair.as_str().to_string())
+impl<'a> TryFrom<Pair<'a, Rule>> for Identifier {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        CollyParser::assert_rule(Rule::Identifier, &pair)?;
+        Ok(Identifier(pair.as_str().to_string()))
     }
 }
 
@@ -267,7 +278,7 @@ impl FunctionExpression {
     }
 
     fn from_func_call_list(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = pair.clone().into_inner();
+        let inner = pair.into_inner();
         let unparsed_funcs: ParseResult<Vec<Pair<Rule>>> =
             inner.map(CollyParser::first_inner_for_pair).collect();
         let func_calls: ParseResult<Vec<FunctionCall>> = unparsed_funcs?
@@ -289,13 +300,12 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        let mut inner = pair.clone().into_inner();
-        let identifier: Identifier =
-            CollyParser::next_pair(&mut inner, &pair)?.into();
+        let mut inner = pair.into_inner();
+        let identifier: ParseResult<Identifier> = inner.next().unwrap().try_into();
         let params: ParseResult<Vec<Expression>> =
             inner.map(Expression::try_from).collect();
         Ok(FunctionCall {
-            identifier,
+            identifier: identifier?,
             parameters: params?,
         })
     }
@@ -320,13 +330,11 @@ impl Properties {
     fn parse_kv_pair(
         pair: Pair<Rule>,
     ) -> ParseResult<(Identifier, PropertyValue)> {
-        let mut inner = pair.clone().into_inner();
-        let identifier: Identifier =
-            CollyParser::next_pair(&mut inner, &pair)?.into();
-        let value: ParseResult<PropertyValue> =
-            CollyParser::next_pair(&mut inner, &pair)?.try_into();
+        let mut inner = pair.into_inner();
+        let identifier: ParseResult<Identifier> = inner.next().unwrap().try_into();
+        let value: ParseResult<PropertyValue> = inner.next().unwrap().try_into();
 
-        Ok((identifier, value?))
+        Ok((identifier?, value?))
     }
 }
 
@@ -342,9 +350,11 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PropertyValue {
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = CollyParser::first_inner_for_pair(pair)?;
         match inner.as_rule() {
-            Rule::SuperExpression => Ok(PropertyValue::SuperExpression(inner.try_into()?)),
+            Rule::SuperExpression => {
+                Ok(PropertyValue::SuperExpression(inner.try_into()?))
+            }
             Rule::PatternExpression => unimplemented!(),
-            _ => CollyParser::rule_error(&inner)
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }

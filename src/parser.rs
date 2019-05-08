@@ -54,6 +54,6 @@ impl CollyParser {
     ) -> ParseResult<Pair<'a, Rule>> {
         pairs
             .next()
-            .ok_or_else(|| CollyParser::error("Cannot get inner.", &previous))
+            .ok_or_else(|| CollyParser::error("Cannot get next pair.", &previous))
     }
 }
