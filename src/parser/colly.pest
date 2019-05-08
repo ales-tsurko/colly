@@ -38,9 +38,8 @@ PropertyGetter = { (Variable
     | Mixer
     | Properties) ~ NEWLINE? ~ ("." ~ NEWLINE? ~ Identifier ~ NEWLINE?)+ }
 Properties = { "{" ~ NEWLINE* ~ KvPair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ KvPair)* ~ NEWLINE* ~ "}" }
-KvPair = { NEWLINE* ~ Identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ (
-    SuperExpression
-    | PatternExpression) ~ NEWLINE* }
+KvPair = { NEWLINE* ~ Identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ PropertyValue ~ NEWLINE* }
+PropertyValue = { SuperExpression | PatternExpression }
 Variable = ${ ":" ~ Identifier }
 String = ${ "\"" ~ StringInner ~ "\"" }
 StringInner = @{ Char* }
@@ -87,5 +86,3 @@ Alteration = { "+" | "-" }
 EventMethod = { "_" | "." | "*" | ":" }
 Modulation = { "p" | "F" | "<" | ">" | LiteralModulation }
 LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
-
-

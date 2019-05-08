@@ -232,6 +232,9 @@ pub struct Identifier(pub String);
 
 impl<'a> From<Pair<'a, Rule>> for Identifier {
     fn from(pair: Pair<Rule>) -> Self {
+        //TODO
+        //make it TryFrom
+        // CollyParser::assert_rule(Rule::Identifier, &pair)?;
         Identifier(pair.as_str().to_string())
     }
 }
@@ -302,8 +305,30 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionCall {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Properties(HashMap<Identifier, PropertyValue>);
 
-// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-// pub struct PropertyKey(Identifier);
+impl<'a> TryFrom<Pair<'a, Rule>> for Properties {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = pair.into_inner();
+        let map: ParseResult<HashMap<Identifier, PropertyValue>> =
+            inner.map(Properties::parse_kv_pair).collect();
+        Ok(Properties(map?))
+    }
+}
+
+impl Properties {
+    fn parse_kv_pair(
+        pair: Pair<Rule>,
+    ) -> ParseResult<(Identifier, PropertyValue)> {
+        let mut inner = pair.clone().into_inner();
+        let identifier: Identifier =
+            CollyParser::next_pair(&mut inner, &pair)?.into();
+        let value: ParseResult<PropertyValue> =
+            CollyParser::next_pair(&mut inner, &pair)?.try_into();
+
+        Ok((identifier, value?))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyValue {
@@ -311,14 +336,16 @@ pub enum PropertyValue {
     PatternExpression,
 }
 
-impl<'a> TryFrom<Pair<'a, Rule>> for Properties {
+impl<'a> TryFrom<Pair<'a, Rule>> for PropertyValue {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        dbg!(&pair);
-        // let inner = CollyParser::first_inner_for_pair(pair)?;
-        // Expression::from_variant(inner)
-        unimplemented!()
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::SuperExpression => Ok(PropertyValue::SuperExpression(inner.try_into()?)),
+            Rule::PatternExpression => unimplemented!(),
+            _ => CollyParser::rule_error(&inner)
+        }
     }
 }
 
