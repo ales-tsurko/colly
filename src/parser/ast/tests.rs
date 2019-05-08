@@ -61,13 +61,17 @@ fn test_parse_variable() {
 fn test_parse_property_getter() {
     let expected = Expression::PropertyGetter {
         assignee: Box::new(Expression::Variable(Identifier("foo".into()))),
-        property_id: Identifier("bar".into()),
+        property_id: vec![Identifier("bar".into())],
     };
     let result: ParseResult<Expression> = parse_source_for_rule(":foo.bar", Rule::Expression);
     assert_eq!(expected, result.unwrap());
 
-    //TODO
-    // let ast: Ast = ":foo.bar.baz.fred".parse().unwrap();
+    let expected = Expression::PropertyGetter {
+        assignee: Box::new(Expression::Variable(Identifier("foo".into()))),
+        property_id: vec![Identifier("bar".into()), Identifier("baz".into()), Identifier("fred".into())],
+    };
+    let result: ParseResult<Expression> = parse_source_for_rule(":foo.bar.baz.fred", Rule::Expression);
+    assert_eq!(expected, result.unwrap());
 }
 
 #[test]

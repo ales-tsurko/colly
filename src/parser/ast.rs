@@ -100,7 +100,7 @@ impl SuperExpression {
 pub enum Expression {
     PropertyGetter {
         assignee: Box<Expression>,
-        property_id: Identifier,
+        property_id: Vec<Identifier>,
     },
     Boolean(bool),
     Identifier(Identifier),
@@ -152,10 +152,9 @@ impl Expression {
         let assignee: Box<Expression> = Box::new(Expression::from_variant(
             CollyParser::next_pair(&mut inner, &pair)?,
         )?);
-        let raw_identifier = CollyParser::next_pair(&mut inner, &pair)?;
         Ok(Expression::PropertyGetter {
             assignee,
-            property_id: raw_identifier.into(),
+            property_id: inner.map(Identifier::from).collect(),
         })
     }
 
