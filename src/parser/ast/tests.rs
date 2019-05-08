@@ -2,144 +2,115 @@ use super::*;
 
 #[test]
 fn test_parse_number() {
-    let ast: Ast = "0.123".parse().unwrap();
-    let expected = expected_from_float(0.123);
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("0.123", Rule::Expression);
+    assert_eq!(Expression::Number(0.123), result.unwrap());
 
-    let ast: Ast = "10".parse().unwrap();
-    let expected = expected_from_float(10.0);
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("10", Rule::Expression);
+    assert_eq!(Expression::Number(10.0), result.unwrap());
 
-    let ast: Ast = "1e5".parse().unwrap();
-    let expected = expected_from_float(1e5);
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("1e5", Rule::Expression);
+    assert_eq!(Expression::Number(1e5), result.unwrap());
 
-    let ast: Ast = "1e-5".parse().unwrap();
-    let expected = expected_from_float(1e-5);
-    assert_eq!(ast.0, expected);
-
-    fn expected_from_float(number: f64) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::Number(number),
-        ))]
-    }
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("1e-5", Rule::Expression);
+    assert_eq!(Expression::Number(1e-5), result.unwrap());
 }
 
 #[test]
 fn test_parse_boolean() {
-    let ast: Ast = "true".parse().unwrap();
-    let expected = expected_from_boolean(true);
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("true", Rule::Expression);
+    assert_eq!(Expression::Boolean(true), result.unwrap());
 
-    let ast: Ast = "false".parse().unwrap();
-    let expected = expected_from_boolean(false);
-    assert_eq!(ast.0, expected);
-
-    fn expected_from_boolean(value: bool) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::Boolean(value),
-        ))]
-    }
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("false", Rule::Expression);
+    assert_eq!(Expression::Boolean(false), result.unwrap());
 }
 
 #[test]
 fn test_parse_string() {
-    let source = "\"hello world {} \n\"";
-    let ast: Ast = source.parse().unwrap();
-    let expected = expected_from_string("hello world {} \n".to_string());
-    assert_eq!(ast.0, expected);
-
-    fn expected_from_string(value: String) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::String(value),
-        ))]
-    }
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("\"hello world {} \n\"", Rule::Expression);
+    assert_eq!(
+        Expression::String("hello world {} \n".to_string()),
+        result.unwrap()
+    );
 }
 
 #[test]
 fn test_parse_mixer() {
-    let ast: Ast = "$".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(
-        SuperExpression::Expression(Expression::Mixer),
-    )];
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("$", Rule::Expression);
+    assert_eq!(Expression::Mixer, result.unwrap());
 }
 
 #[test]
 fn test_parse_variable() {
-    let ast: Ast = ":foo".parse().unwrap();
-    let expected =
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::Variable(Identifier("foo".into())),
-        ))];
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> =
+        parse_source_for_rule(":foo", Rule::Expression);
+    assert_eq!(
+        Expression::Variable(Identifier("foo".to_string())),
+        result.unwrap()
+    );
 }
 
 #[test]
 fn test_parse_property_getter() {
-    let ast: Ast = ":foo.bar".parse().unwrap();
-    let expected = expected_from_expr(Expression::PropertyGetter {
+    let expected = Expression::PropertyGetter {
         assignee: Box::new(Expression::Variable(Identifier("foo".into()))),
         property_id: Identifier("bar".into()),
-    });
-    assert_eq!(ast.0, expected);
+    };
+    let result: ParseResult<Expression> = parse_source_for_rule(":foo.bar", Rule::Expression);
+    assert_eq!(expected, result.unwrap());
 
     //TODO
     // let ast: Ast = ":foo.bar.baz.fred".parse().unwrap();
-
-    fn expected_from_expr(value: Expression) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            value,
-        ))]
-    }
 }
 
 #[test]
 fn test_parse_track() {
-    let ast: Ast = "$0".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(
-        SuperExpression::Expression(Expression::Track(0)),
-    )];
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> = parse_source_for_rule("$0", Rule::Expression);
+    assert_eq!(Expression::Track(0), result.unwrap());
 }
 
 #[test]
 fn test_parse_pattern_slot() {
-    let ast: Ast = "$0.1".parse().unwrap();
-    let expected = vec![Statement::SuperExpression(
-        SuperExpression::Expression(Expression::PatternSlot((0, 1))),
-    )];
-    assert_eq!(ast.0, expected);
+    let result: ParseResult<Expression> = parse_source_for_rule("$0.1", Rule::Expression);
+    assert_eq!(Expression::PatternSlot((0, 1)), result.unwrap());
 }
 
 #[test]
 fn test_parse_function_expression() {
-    let ast: Ast = "foo".parse().unwrap();
-    let expected = expected_from_func_call(FunctionCall {
+    let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: Vec::new(),
-    });
-    assert_eq!(ast.0, expected);
+    };
+    let result: ParseResult<FunctionCall> = parse_source_for_rule("foo", Rule::FunctionCall);
+    assert_eq!(expected, result.unwrap());
 
-    let ast: Ast = "(foo bar)".parse().unwrap();
-    let expected = expected_from_func_call(FunctionCall {
+    let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: vec![expression_from_func_call(FunctionCall {
             identifier: Identifier("bar".to_string()),
             parameters: Vec::new(),
         })],
-    });
-    assert_eq!(ast.0, expected);
+    };
+    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo bar)", Rule::FunctionCall);
+    assert_eq!(expected, result.unwrap());
 
     let ast: Ast = "(foo true)".parse().unwrap();
-    let expected = expected_from_func_call(FunctionCall {
+    let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: vec![Expression::Boolean(true)],
-    });
-    assert_eq!(ast.0, expected);
+    };
+    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo true)", Rule::FunctionCall);
+    assert_eq!(expected, result.unwrap());
 
     let ast: Ast = "(foo 1 (bar 2 false))".parse().unwrap();
-    let expected = expected_from_func_call(FunctionCall {
+    let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: vec![
             Expression::Number(1.0),
@@ -151,14 +122,9 @@ fn test_parse_function_expression() {
                 ],
             })),
         ],
-    });
-    assert_eq!(ast.0, expected);
-
-    fn expected_from_func_call(value: FunctionCall) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::Function(FunctionExpression::Function(value)),
-        ))]
-    }
+    };
+    let result: ParseResult<FunctionCall> = parse_source_for_rule("(foo 1 (bar 2 false))", Rule::FunctionCall);
+    assert_eq!(expected, result.unwrap());
 }
 
 #[test]
@@ -265,4 +231,16 @@ fn expression_from_func_calls(func_calls: Vec<FunctionCall>) -> Expression {
 #[allow(dead_code)]
 fn superexpression_from_expression(expr: Expression) -> SuperExpression {
     SuperExpression::Expression(expr)
+}
+
+#[allow(dead_code)]
+fn parse_source_for_rule<'a, T>(
+    source: &'a str,
+    rule: Rule,
+) -> Result<T, T::Error>
+where
+    T: TryFrom<Pair<'a, Rule>>,
+{
+    let pair = CollyParser::parse(rule, source).unwrap().peek().unwrap();
+    T::try_from(pair)
 }
