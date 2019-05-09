@@ -44,7 +44,7 @@ impl FromStr for Ast {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     SuperExpression(SuperExpression),
-    Assign(Assign),
+    Assign(Assignment),
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
@@ -195,7 +195,8 @@ impl Expression {
     }
 
     fn from_pattern_slot(pair: Pair<Rule>) -> ParseResult<Self> {
-        let mut inner = pair.clone().into_inner();
+        let error = CollyParser::error("Cannot parse pattern slot.", &pair);
+        let mut inner = pair.into_inner();
         if let Expression::Track(track) =
             Expression::from_track(inner.next().unwrap())?
         {
@@ -203,7 +204,7 @@ impl Expression {
                 inner.next().unwrap().as_str().parse().unwrap();
             return Ok(Expression::PatternSlot((track, slot_number)));
         }
-        CollyParser::rule_error(&pair)
+        Err(error)
     }
 
     fn from_track(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -377,7 +378,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for MethodCall {
 
 //
 #[derive(Debug, Clone, PartialEq)]
-pub enum Assign {
+pub enum Assignment {
     Pattern(Expression, PatternSuperExpression),
     Variable {
         assignee: Identifier,
@@ -389,10 +390,48 @@ pub enum Assign {
     },
 }
 
-impl<'a> TryFrom<Pair<'a, Rule>> for Assign {
+impl<'a> TryFrom<Pair<'a, Rule>> for Assignment {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        match pair.as_rule() {
+            Rule::PatternAssignment => {
+                Assignment::from_pattern_assignment(pair)
+            }
+            Rule::VariableAssignment => {
+                Assignment::from_variable_assignment(pair)
+            }
+            Rule::PropertiesAssignment => {
+                Assignment::form_properties_assignment(pair)
+            }
+            _ => CollyParser::rule_error(&pair),
+        }
+    }
+}
+
+impl Assignment {
+    fn from_variable_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
+        let error =
+            CollyParser::error("Cannot parse variable assignment.", &pair);
+        let mut inner = pair.into_inner();
+        let variable: ParseResult<Expression> =
+            Expression::from_variant(inner.next().unwrap());
+        if let Expression::Variable(identifier) = variable? {
+            let assignment: ParseResult<SuperExpression> =
+                inner.next().unwrap().try_into();
+            return Ok(Assignment::Variable {
+                assignee: identifier,
+                assignment: assignment?,
+            });
+        }
+        Err(error)
+    }
+
+    fn from_pattern_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
+        unimplemented!()
+    }
+
+    fn form_properties_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
         unimplemented!()
     }
 }

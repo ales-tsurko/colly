@@ -324,6 +324,34 @@ fn test_parse_method_call() {
     assert_eq!(expected, result.unwrap());
 }
 
+#[test]
+fn test_parse_variable_assignment() {
+    let result: ParseResult<Assignment> = parse_source_for_rule(":foo = 1", Rule::VariableAssignment);
+    let expected = Assignment::Variable {
+        assignee: Identifier("foo".into()),
+        assignment: Expression::Number(1.0).into()
+    };
+
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<Assignment> = parse_source_for_rule(":foo = bar (baz true)", Rule::VariableAssignment);
+    let expected = Assignment::Variable {
+        assignee: Identifier("foo".into()),
+        assignment: SuperExpression::Method(MethodCall {
+            caller: FunctionCall {
+                identifier: Identifier("bar".into()),
+                parameters: Vec::new(),
+            }.into(),
+            callee: vec![FunctionExpression::Function(FunctionCall {
+                identifier: Identifier("baz".into()),
+                parameters: vec![Expression::Boolean(true)],
+            })]
+        })
+    };
+
+    assert_eq!(expected, result.unwrap());
+}
+
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {
