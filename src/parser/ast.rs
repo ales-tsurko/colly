@@ -364,7 +364,14 @@ impl<'a> TryFrom<Pair<'a, Rule>> for MethodCall {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let mut inner = pair.into_inner();
+        let caller: ParseResult<Expression> = inner.next().unwrap().try_into();
+        let callee: ParseResult<Vec<FunctionExpression>> =
+            inner.map(FunctionExpression::try_from).collect();
+        Ok(MethodCall {
+            caller: caller?,
+            callee: callee?,
+        })
     }
 }
 

@@ -299,6 +299,31 @@ fn test_parse_properties() {
     assert_eq!(Properties(map), result.unwrap());
 }
 
+#[test]
+fn test_parse_method_call() {
+    let source = ":foo bar (baz 1.0 -2 true)";
+    let result: ParseResult<MethodCall> =
+        parse_source_for_rule(source, Rule::MethodCall);
+    let expected = MethodCall {
+        caller: Expression::Variable(Identifier("foo".into())),
+        callee: vec![
+            FunctionExpression::Function(FunctionCall {
+                identifier: Identifier("bar".into()),
+                parameters: Vec::new(),
+            }),
+            FunctionExpression::Function(FunctionCall {
+                identifier: Identifier("baz".into()),
+                parameters: vec![
+                    Expression::Number(1.0),
+                    Expression::Number(-2.0),
+                    Expression::Boolean(true),
+                ],
+            }),
+        ],
+    };
+    assert_eq!(expected, result.unwrap());
+}
+
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {
