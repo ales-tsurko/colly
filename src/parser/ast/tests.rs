@@ -352,6 +352,22 @@ fn test_parse_variable_assignment() {
     assert_eq!(expected, result.unwrap());
 }
 
+#[test]
+fn test_parse_properties_assignment() {
+    let result: ParseResult<Assignment> = parse_source_for_rule("$11.12 {foo: true}", Rule::PropertiesAssignment);
+    let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
+    map.insert(
+        Identifier("foo".into()),
+        PropertyValue::SuperExpression(Expression::Boolean(true).into()),
+    );
+    let expected = Assignment::Properties {
+        assignee: Expression::PatternSlot((11, 12)).into(),
+        assignment: Properties(map)
+    };
+
+    assert_eq!(expected, result.unwrap());
+}
+
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {

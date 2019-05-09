@@ -386,7 +386,7 @@ pub enum Assignment {
     },
     Properties {
         assignee: SuperExpression,
-        assignment: Expression,
+        assignment: Properties,
     },
 }
 
@@ -432,7 +432,13 @@ impl Assignment {
     }
 
     fn form_properties_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let mut inner = pair.into_inner();
+        let assignee: ParseResult<SuperExpression> = inner.next().unwrap().try_into();
+        let assignment: ParseResult<Properties> = inner.next().unwrap().try_into();
+        Ok(Assignment::Properties {
+            assignee: assignee?,
+            assignment: assignment?,
+        })
     }
 }
 
