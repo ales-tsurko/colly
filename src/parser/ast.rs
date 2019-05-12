@@ -55,7 +55,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Statement {
         match inner.as_rule() {
             Rule::SuperExpression => Statement::from_super_expression(inner),
             Rule::AssignStatement => Statement::from_assign(inner),
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -85,7 +85,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for SuperExpression {
         match inner.as_rule() {
             Rule::Expression => SuperExpression::from_expression(inner),
             Rule::MethodCall => SuperExpression::from_method_call(inner),
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -148,7 +148,7 @@ impl Expression {
             Rule::Mixer => Ok(Expression::Mixer),
             Rule::Properties => Expression::from_properties(pair),
             Rule::Array => Expression::from_array(pair),
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&pair),
         }
     }
 
@@ -259,7 +259,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for FunctionExpression {
             Rule::FunctionListCall => {
                 FunctionExpression::from_func_call_list(inner)
             }
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -349,7 +349,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PropertyValue {
                 Ok(PropertyValue::SuperExpression(inner.try_into()?))
             }
             Rule::PatternExpression => unimplemented!(),
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -404,7 +404,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Assignment {
             Rule::PropertiesAssignment => {
                 Assignment::form_properties_assignment(pair)
             }
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&pair),
         }
     }
 }
@@ -461,7 +461,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternSuperExpression {
             Rule::PatternExpressionList => {
                 Self::from_pattern_expression_list(inner)
             }
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -503,7 +503,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternExpression {
                 Rule::PatternInnerMethod => result.parse_inner_method(pair)?,
                 Rule::FunctionExpression => result.parse_method(pair)?,
                 Rule::Properties => result.parse_properties(pair)?,
-                _ => unreachable!(),
+                _ => CollyParser::rule_error(&pair)?,
             }
         }
 
@@ -536,48 +536,56 @@ impl PatternExpression {
 
 //
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Pattern(pub Vec<Event>);
+pub struct Pattern(pub Vec<EventGroup>);
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Pattern {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        let events: ParseResult<Vec<Event>> =
-            inner.map(Event::try_from).collect();
+        let events: ParseResult<Vec<EventGroup>> =
+            inner.map(EventGroup::try_from).collect();
         Ok(Pattern(events?))
     }
 }
 
 //
 #[derive(Debug, Clone, PartialEq)]
+pub struct EventGroup(pub Vec<Event>);
+
+impl<'a> TryFrom<Pair<'a, Rule>> for EventGroup {
+    type Error = Error<Rule>;
+
+    fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = pair.into_inner();
+        let events: ParseResult<Vec<Event>> = inner.map(Event::try_from).collect();
+        Ok(EventGroup(events?))
+    }
+}
+
+//
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
-    Chord(Vec<Event>),
     Group(Vec<PatternAtom>),
-    ParenthesisedEvent(Vec<Event>),
+    Chord(Vec<EventGroup>),
+    ParenthesisedEvent(Vec<EventGroup>),
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Event {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
-            Rule::Chord => Self::from_chord(pair),
-            Rule::Group => Self::from_group(pair),
-            Rule::ParenthesisedEvent => Self::from_parenthesised_event(pair),
-            _ => unreachable!(),
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
+            Rule::Chord => Self::from_chord(inner),
+            Rule::Group => Self::from_group(inner),
+            Rule::ParenthesisedEventGroup => Self::from_parenthesised_event_group(inner),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
 
 impl Event {
-    fn from_chord(pair: Pair<Rule>) -> ParseResult<Self> {
-        let inner = pair.into_inner();
-        let events: ParseResult<Vec<Event>> =
-            inner.map(Self::try_from).collect();
-        Ok(Event::Chord(events?))
-    }
-
     fn from_group(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
         let atoms: ParseResult<Vec<PatternAtom>> =
@@ -585,11 +593,18 @@ impl Event {
         Ok(Event::Group(atoms?))
     }
 
-    fn from_parenthesised_event(pair: Pair<Rule>) -> ParseResult<Self> {
+    fn from_chord(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        let events: ParseResult<Vec<Event>> =
-            inner.map(Self::try_from).collect();
-        Ok(Event::ParenthesisedEvent(events?))
+        let groups: ParseResult<Vec<EventGroup>> =
+            inner.map(EventGroup::try_from).collect();
+        Ok(Event::Chord(groups?))
+    }
+
+    fn from_parenthesised_event_group(pair: Pair<Rule>) -> ParseResult<Self> {
+        let inner = pair.into_inner();
+        let groups: ParseResult<Vec<EventGroup>> =
+            inner.map(EventGroup::try_from).collect();
+        Ok(Event::ParenthesisedEvent(groups?))
     }
 }
 
@@ -621,7 +636,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
             Rule::Pause => Ok(PatternAtom::Pause),
             Rule::PatternInput => Ok(PatternAtom::PatternInput),
             Rule::Modulation => Ok(PatternAtom::Modulation(inner.try_into()?)),
-            _ => unreachable!(),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -714,7 +729,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Modulation {
         match inner.as_rule() {
             Rule::ModulationSymbol => Self::from_symbol(inner),
             Rule::LiteralModulation => Self::from_literal_modulation(inner),
-            _ => unreachable!()
+            _ => CollyParser::rule_error(&inner)
         }
     }
 }

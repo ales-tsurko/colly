@@ -376,39 +376,56 @@ fn test_parse_properties_assignment() {
 
 #[test]
 fn test_parse_event() {
-    let result: ParseResult<Event> = parse_source_for_rule("[0 1 2]", Rule::Event);
+    let result: ParseResult<Event> =
+        parse_source_for_rule("[0 1 2]", Rule::Event);
     let expected = Event::Chord(vec![
-        Event::Group(vec![
-            PatternAtom::Pitch(0),
-        ]),
-        Event::Group(vec![
-            PatternAtom::Pitch(1),
-        ]),
-        Event::Group(vec![
-            PatternAtom::Pitch(2),
-        ])
+        EventGroup(vec![Event::Group(vec![PatternAtom::Pitch(0)])]),
+        EventGroup(vec![Event::Group(vec![PatternAtom::Pitch(1)])]),
+        EventGroup(vec![Event::Group(vec![PatternAtom::Pitch(2)])]),
     ]);
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<Event> = parse_source_for_rule("(01 (23 (4) 5)6 )", Rule::Event);
+    let result: ParseResult<Event> =
+        parse_source_for_rule("(01 (23 (4) 5)6)", Rule::Event);
     let expected = Event::ParenthesisedEvent(vec![
-        Event::ParenthesisedEvent(vec![
-            Event::Group(vec![
-                PatternAtom::Pitch(0),
-                PatternAtom::Pitch(1),
-            ]),
+        // 01
+        EventGroup(vec![Event::Group(vec![
+            PatternAtom::Pitch(0),
+            PatternAtom::Pitch(1),
+        ])]),
+        // (23 (4) 5)6
+        EventGroup(vec![
+            // (23 (4) 5)
             Event::ParenthesisedEvent(vec![
-                Event::Group(vec![
-                    PatternAtom::Pitch(2),
-                    PatternAtom::Pitch(3),
+                // 23
+                EventGroup(vec![
+                    Event::Group(vec![
+                        PatternAtom::Pitch(2),
+                        PatternAtom::Pitch(3),
+                    ])
                 ]),
-                Event::ParenthesisedEvent(vec![
-                    Event::Group(vec![PatternAtom::Pitch(4)])
+                // (4)
+                EventGroup(vec![
+                    Event::ParenthesisedEvent(vec![
+                        EventGroup(vec![
+                            Event::Group(vec![
+                                PatternAtom::Pitch(4)
+                            ])
+                        ])
+                    ])
                 ]),
-                Event::Group(vec![PatternAtom::Pitch(5)])
+                // 5
+                EventGroup(vec![
+                    Event::Group(vec![
+                        PatternAtom::Pitch(5)
+                    ])
+                ])
             ]),
-            Event::Group(vec![PatternAtom::Pitch(6)])
-        ]),
+            // 6
+            Event::Group(vec![
+                PatternAtom::Pitch(6)
+            ]),
+        ])
     ]);
     assert_eq!(expected, result.unwrap());
 }

@@ -65,10 +65,11 @@ PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
 PatternExpression = { Pattern ~ PatternInnerMethod? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
 PatternInnerMethod = { FunctionExpression }
-Pattern = { "|" ~ Event* ~  "|" }
-Event = ${ (Group | Chord | ParenthesisedEvent)+ }
-ParenthesisedEvent = ${ "(" ~ WHITESPACE* ~ (Event ~ WHITESPACE*)+ ~ ")" }
-Chord = ${ "[" ~ WHITESPACE* ~ (Event ~ WHITESPACE*)+ ~ "]" }
+Pattern = { "|" ~ EventGroup* ~  "|" }
+EventGroup = ${ Event+ }
+Event = { Group | Chord | ParenthesisedEventGroup }
+ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ ")" }
+Chord = ${ "[" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ "]" }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
     EventMethod 
