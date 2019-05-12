@@ -66,10 +66,10 @@ PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ Patte
 PatternExpression = { Pattern ~ PatternInnerMethod? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
 PatternInnerMethod = { FunctionExpression }
 Pattern = { "|" ~ Event* ~  "|" }
-Event = _{ Chord | Group | ParenthesisedEvent }
+Event = ${ (Group | Chord | ParenthesisedEvent)+ }
 ParenthesisedEvent = ${ "(" ~ WHITESPACE* ~ (Event ~ WHITESPACE*)+ ~ ")" }
-Chord = ${ "[" ~ WHITESPACE* ~ ((Group | ParenthesisedEvent) ~ WHITESPACE*)+ ~ "]" }
-Group = ${ (PatternAtom | Chord | ParenthesisedEvent)+ }
+Chord = ${ "[" ~ WHITESPACE* ~ (Event ~ WHITESPACE*)+ ~ "]" }
+Group = ${ PatternAtom+ }
 PatternAtom = { 
     EventMethod 
     | Octave 
