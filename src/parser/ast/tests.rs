@@ -398,35 +398,100 @@ fn test_parse_event() {
             // (23 (4) 5)
             Event::ParenthesisedEvent(vec![
                 // 23
-                EventGroup(vec![
-                    Event::Group(vec![
-                        PatternAtom::Pitch(2),
-                        PatternAtom::Pitch(3),
-                    ])
-                ]),
+                EventGroup(vec![Event::Group(vec![
+                    PatternAtom::Pitch(2),
+                    PatternAtom::Pitch(3),
+                ])]),
                 // (4)
-                EventGroup(vec![
-                    Event::ParenthesisedEvent(vec![
-                        EventGroup(vec![
-                            Event::Group(vec![
-                                PatternAtom::Pitch(4)
-                            ])
-                        ])
-                    ])
-                ]),
+                EventGroup(vec![Event::ParenthesisedEvent(vec![EventGroup(
+                    vec![Event::Group(vec![PatternAtom::Pitch(4)])],
+                )])]),
                 // 5
-                EventGroup(vec![
-                    Event::Group(vec![
-                        PatternAtom::Pitch(5)
-                    ])
-                ])
+                EventGroup(vec![Event::Group(vec![PatternAtom::Pitch(5)])]),
             ]),
             // 6
-            Event::Group(vec![
-                PatternAtom::Pitch(6)
-            ]),
-        ])
+            Event::Group(vec![PatternAtom::Pitch(6)]),
+        ]),
     ]);
+    assert_eq!(expected, result.unwrap());
+}
+
+#[test]
+fn test_parse_pattern_expression() {
+    let result: ParseResult<PatternExpression> = parse_source_for_rule(
+        "|| hello",
+        Rule::PatternExpression,
+    );
+    let expected = PatternExpression {
+        pattern: Pattern(vec![]),
+        inner_method: Some(FunctionExpression::Function(FunctionCall {
+            identifier: Identifier("hello".into()),
+            parameters: Vec::new(),
+        })),
+        methods: Vec::new(),
+        properties: None,
+    };
+
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<PatternExpression> = parse_source_for_rule(
+        "|| => world",
+        Rule::PatternExpression,
+    );
+    let expected = PatternExpression {
+        pattern: Pattern(vec![]),
+        inner_method: None,
+        methods: vec![FunctionExpression::Function(FunctionCall {
+            identifier: Identifier("world".into()),
+            parameters: Vec::new(),
+        })],
+        properties: None,
+    };
+
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<PatternExpression> = parse_source_for_rule(
+        "|| {foo: true}",
+        Rule::PatternExpression,
+    );
+    let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
+    map.insert(
+        Identifier("foo".into()),
+        PropertyValue::SuperExpression(Expression::Boolean(true).into()),
+    );
+    let properties = Properties(map);
+    let expected = PatternExpression {
+        pattern: Pattern(vec![]),
+        inner_method: None,
+        methods: Vec::new(),
+        properties: Some(properties),
+    };
+
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<PatternExpression> = parse_source_for_rule(
+        "|| hello => world {foo: true}",
+        Rule::PatternExpression,
+    );
+    let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
+    map.insert(
+        Identifier("foo".into()),
+        PropertyValue::SuperExpression(Expression::Boolean(true).into()),
+    );
+    let properties = Properties(map);
+    let expected = PatternExpression {
+        pattern: Pattern(vec![]),
+        inner_method: Some(FunctionExpression::Function(FunctionCall {
+            identifier: Identifier("hello".into()),
+            parameters: Vec::new(),
+        })),
+        methods: vec![FunctionExpression::Function(FunctionCall {
+            identifier: Identifier("world".into()),
+            parameters: Vec::new(),
+        })],
+        properties: Some(properties),
+    };
+
     assert_eq!(expected, result.unwrap());
 }
 
