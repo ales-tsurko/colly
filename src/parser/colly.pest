@@ -15,7 +15,7 @@ Expression = {
     | FunctionExpression
     | Identifier 
     | Variable 
-    | PatternString 
+    | Pattern
     | Number 
     | String 
     | PatternSlot 
@@ -32,7 +32,7 @@ Track = ${ Mixer ~ UnsignedInt }
 Mixer = { "$" }
 Array = { "[" ~ NEWLINE* ~ SuperExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ SuperExpression ~ NEWLINE*)* ~ "]" }
 PropertyGetter = { (Variable 
-    | PatternString 
+    | Pattern 
     | PatternSlot 
     | Track 
     | Mixer
@@ -63,14 +63,14 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 PatternAssignment = { PatternSlot ~ PatternSuperExpression }
 PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
-PatternExpression = { Pattern ~ FunctionExpression? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
+PatternExpression = { Pattern ~ PatternInnerMethod? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
+PatternInnerMethod = { FunctionExpression }
 Pattern = { "|" ~ Event* ~  "|" }
-PatternString = { "'" ~ Event+ ~ "'" }
 Event = _{ Chord | Group | ParenthesisedEvent }
-ParenthesisedEvent = { "(" ~ Event+  ~ ")" ~ EventMethod* }
-Chord = { "[" ~ (Group | ParenthesisedEvent)+ ~ "]" }
-Group = ${ PatternSymbol+ }
-PatternSymbol = { 
+ParenthesisedEvent = ${ "(" ~ WHITESPACE* ~ (Event ~ WHITESPACE*)+ ~ ")" }
+Chord = ${ "[" ~ WHITESPACE* ~ ((Group | ParenthesisedEvent) ~ WHITESPACE*)+ ~ "]" }
+Group = ${ (PatternAtom | Chord | ParenthesisedEvent)+ }
+PatternAtom = { 
     EventMethod 
     | Octave 
     | Alteration
@@ -84,5 +84,6 @@ PatternInput = { "%" }
 Octave = { "o" | "O" }
 Alteration = { "+" | "-" }
 EventMethod = { "_" | "." | "*" | ":" }
-Modulation = { "p" | "F" | "<" | ">" | LiteralModulation }
+Modulation = { ModulationSymbol | LiteralModulation }
+ModulationSymbol = { "p" | "F" | "<" | ">" }
 LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }

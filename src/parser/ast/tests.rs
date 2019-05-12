@@ -326,27 +326,32 @@ fn test_parse_method_call() {
 
 #[test]
 fn test_parse_variable_assignment() {
-    let result: ParseResult<Assignment> = parse_source_for_rule(":foo = 1", Rule::VariableAssignment);
+    let result: ParseResult<Assignment> =
+        parse_source_for_rule(":foo = 1", Rule::VariableAssignment);
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
-        assignment: Expression::Number(1.0).into()
+        assignment: Expression::Number(1.0).into(),
     };
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<Assignment> = parse_source_for_rule(":foo = bar (baz true)", Rule::VariableAssignment);
+    let result: ParseResult<Assignment> = parse_source_for_rule(
+        ":foo = bar (baz true)",
+        Rule::VariableAssignment,
+    );
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
         assignment: SuperExpression::Method(MethodCall {
             caller: FunctionCall {
                 identifier: Identifier("bar".into()),
                 parameters: Vec::new(),
-            }.into(),
+            }
+            .into(),
             callee: vec![FunctionExpression::Function(FunctionCall {
                 identifier: Identifier("baz".into()),
                 parameters: vec![Expression::Boolean(true)],
-            })]
-        })
+            })],
+        }),
     };
 
     assert_eq!(expected, result.unwrap());
@@ -354,7 +359,8 @@ fn test_parse_variable_assignment() {
 
 #[test]
 fn test_parse_properties_assignment() {
-    let result: ParseResult<Assignment> = parse_source_for_rule("$11.12 {foo: true}", Rule::PropertiesAssignment);
+    let result: ParseResult<Assignment> =
+        parse_source_for_rule("$11.12 {foo: true}", Rule::PropertiesAssignment);
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -362,10 +368,76 @@ fn test_parse_properties_assignment() {
     );
     let expected = Assignment::Properties {
         assignee: Expression::PatternSlot((11, 12)).into(),
-        assignment: Properties(map)
+        assignment: Properties(map),
     };
 
     assert_eq!(expected, result.unwrap());
+}
+
+#[test]
+fn test_parse_event() {
+    let result: ParseResult<Event> = parse_source_for_rule("[0 1 2]", Rule::Event);
+    let expected = Event::Chord(vec![
+        Event::Group(vec![
+            PatternAtom::Pitch(0),
+        ]),
+        Event::Group(vec![
+            PatternAtom::Pitch(1),
+        ]),
+        Event::Group(vec![
+            PatternAtom::Pitch(2),
+        ])
+    ]);
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<Event> = parse_source_for_rule("(01 (23 (4) 5)6 )", Rule::Event);
+    let expected = Event::ParenthesisedEvent(vec![
+        Event::ParenthesisedEvent(vec![
+            Event::Group(vec![
+                PatternAtom::Pitch(0),
+                PatternAtom::Pitch(1),
+            ]),
+            Event::ParenthesisedEvent(vec![
+                Event::Group(vec![
+                    PatternAtom::Pitch(2),
+                    PatternAtom::Pitch(3),
+                ]),
+                Event::ParenthesisedEvent(vec![
+                    Event::Group(vec![PatternAtom::Pitch(4)])
+                ]),
+                Event::Group(vec![PatternAtom::Pitch(5)])
+            ]),
+            Event::Group(vec![PatternAtom::Pitch(6)])
+        ]),
+    ]);
+    assert_eq!(expected, result.unwrap());
+}
+
+#[test]
+fn test_parse_pitch() {
+    let result: ParseResult<PatternAtom> =
+        parse_source_for_rule("a", Rule::PatternAtom);
+    assert_eq!(PatternAtom::Pitch(10), result.unwrap());
+
+    let result: ParseResult<PatternAtom> =
+        parse_source_for_rule("f", Rule::PatternAtom);
+    assert_eq!(PatternAtom::Pitch(15), result.unwrap());
+}
+
+#[test]
+fn test_parse_modulation_atom() {
+    let result: ParseResult<Modulation> =
+        parse_source_for_rule("{127}", Rule::Modulation);
+    let expected = Modulation::Literal(127.0);
+    assert_eq!(expected, result.unwrap());
+
+    let result: ParseResult<Modulation> =
+        parse_source_for_rule("p", Rule::Modulation);
+    assert_eq!(Modulation::Down, result.unwrap());
+
+    let result: ParseResult<Modulation> =
+        parse_source_for_rule("F", Rule::Modulation);
+    assert_eq!(Modulation::Up, result.unwrap());
 }
 
 #[allow(dead_code)]
