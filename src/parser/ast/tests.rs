@@ -239,6 +239,14 @@ fn test_parse_array() {
 }
 
 #[test]
+fn test_parse_pattern_as_expression() {
+    let result: ParseResult<Expression> =
+        parse_source_for_rule("||", Rule::Expression);
+    let expected = Expression::Pattern(Pattern(Vec::new()));
+    assert_eq!(expected, result.unwrap());
+}
+
+#[test]
 fn test_parse_properties() {
     let source = "{foo: true, bar: \"hello\", baz: 1.0, fred: foo, ringo: [1, false], paul: {foo: 1, bar: false}}";
     let result: ParseResult<Properties> =
@@ -300,6 +308,20 @@ fn test_parse_properties() {
 }
 
 #[test]
+fn test_parse_property_value() {
+    let result: ParseResult<PropertyValue> =
+        parse_source_for_rule("||", Rule::PropertyValue);
+    let expected = PropertyValue::PatternExpression(PatternExpression {
+        pattern: Pattern(Vec::new()),
+        inner_method: None,
+        methods: Vec::new(),
+        properties: None,
+    });
+
+    assert_eq!(expected, result.unwrap());
+}
+
+#[test]
 fn test_parse_method_call() {
     let source = ":foo bar (baz 1.0 -2 true)";
     let result: ParseResult<MethodCall> =
@@ -327,7 +349,7 @@ fn test_parse_method_call() {
 #[test]
 fn test_parse_variable_assignment() {
     let result: ParseResult<Assignment> =
-        parse_source_for_rule(":foo = 1", Rule::VariableAssignment);
+        parse_source_for_rule(":foo = 1", Rule::AssignStatement);
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
         assignment: Expression::Number(1.0).into(),
@@ -337,7 +359,7 @@ fn test_parse_variable_assignment() {
 
     let result: ParseResult<Assignment> = parse_source_for_rule(
         ":foo = bar (baz true)",
-        Rule::VariableAssignment,
+        Rule::AssignStatement,
     );
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
@@ -360,7 +382,7 @@ fn test_parse_variable_assignment() {
 #[test]
 fn test_parse_properties_assignment() {
     let result: ParseResult<Assignment> =
-        parse_source_for_rule("$11.12 {foo: true}", Rule::PropertiesAssignment);
+        parse_source_for_rule("$11.12 {foo: true}", Rule::AssignStatement);
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -418,10 +440,8 @@ fn test_parse_event() {
 
 #[test]
 fn test_parse_pattern_expression() {
-    let result: ParseResult<PatternExpression> = parse_source_for_rule(
-        "|| hello",
-        Rule::PatternExpression,
-    );
+    let result: ParseResult<PatternExpression> =
+        parse_source_for_rule("|| hello", Rule::PatternExpression);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
         inner_method: Some(FunctionExpression::Function(FunctionCall {
@@ -434,10 +454,8 @@ fn test_parse_pattern_expression() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<PatternExpression> = parse_source_for_rule(
-        "|| => world",
-        Rule::PatternExpression,
-    );
+    let result: ParseResult<PatternExpression> =
+        parse_source_for_rule("|| => world", Rule::PatternExpression);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
         inner_method: None,
@@ -450,10 +468,8 @@ fn test_parse_pattern_expression() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<PatternExpression> = parse_source_for_rule(
-        "|| {foo: true}",
-        Rule::PatternExpression,
-    );
+    let result: ParseResult<PatternExpression> =
+        parse_source_for_rule("|| {foo: true}", Rule::PatternExpression);
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -496,6 +512,34 @@ fn test_parse_pattern_expression() {
 }
 
 #[test]
+fn test_parse_pattern_expression_list() {
+    let result: ParseResult<PatternSuperExpression> =
+        parse_source_for_rule("||, ||, ||", Rule::PatternSuperExpression);
+    let expected = PatternSuperExpression::ExpressionList(vec![
+        PatternExpression {
+            pattern: Pattern(Vec::new()),
+            inner_method: None,
+            methods: Vec::new(),
+            properties: None,
+        },
+        PatternExpression {
+            pattern: Pattern(Vec::new()),
+            inner_method: None,
+            methods: Vec::new(),
+            properties: None,
+        },
+        PatternExpression {
+            pattern: Pattern(Vec::new()),
+            inner_method: None,
+            methods: Vec::new(),
+            properties: None,
+        },
+    ]);
+
+    assert_eq!(expected, result.unwrap());
+}
+
+#[test]
 fn test_parse_pitch() {
     let result: ParseResult<PatternAtom> =
         parse_source_for_rule("a", Rule::PatternAtom);
@@ -520,6 +564,22 @@ fn test_parse_modulation_atom() {
     let result: ParseResult<Modulation> =
         parse_source_for_rule("F", Rule::Modulation);
     assert_eq!(Modulation::Up, result.unwrap());
+}
+
+#[test]
+fn test_pattern_assignment() {
+    let result: ParseResult<Assignment> =
+        parse_source_for_rule("$11.12 ||", Rule::AssignStatement);
+    let expected = Assignment::Pattern {
+        assignee: Expression::PatternSlot((11, 12)),
+        assignment: PatternSuperExpression::Expression(PatternExpression {
+            pattern: Pattern(Vec::new()),
+            inner_method: None,
+            methods: Vec::new(),
+            properties: None,
+        }),
+    };
+    assert_eq!(expected, result.unwrap());
 }
 
 #[allow(dead_code)]

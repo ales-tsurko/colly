@@ -1,6 +1,6 @@
 // Below you'll see patterns like
 // inner.next().unwrap()
-// These unwraps are fine, because we relate on the parser rules,
+// These unwraps are fine, because we relate on the parser's rules,
 // which were checked on the parsing phase.
 
 #[cfg(test)]
@@ -110,7 +110,7 @@ pub enum Expression {
     Boolean(bool),
     Identifier(Identifier),
     Variable(Identifier),
-    Pattern,
+    Pattern(Pattern),
     Number(f64),
     String(String),
     PatternSlot((u64, u64)),
@@ -180,7 +180,7 @@ impl Expression {
     }
 
     fn from_pattern(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        Ok(Expression::Pattern(pair.try_into()?))
     }
 
     fn from_number(pair: Pair<Rule>) -> ParseResult<Self> {
@@ -336,7 +336,7 @@ impl Properties {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PropertyValue {
     SuperExpression(SuperExpression),
-    PatternExpression,
+    PatternExpression(PatternExpression),
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for PropertyValue {
@@ -348,7 +348,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PropertyValue {
             Rule::SuperExpression => {
                 Ok(PropertyValue::SuperExpression(inner.try_into()?))
             }
-            Rule::PatternExpression => unimplemented!(),
+            Rule::PatternExpression => {
+                Ok(PropertyValue::PatternExpression(inner.try_into()?))
+            }
             _ => CollyParser::rule_error(&inner),
         }
     }
@@ -379,7 +381,10 @@ impl<'a> TryFrom<Pair<'a, Rule>> for MethodCall {
 //
 #[derive(Debug, Clone, PartialEq)]
 pub enum Assignment {
-    Pattern(Expression, PatternSuperExpression),
+    Pattern {
+        assignee: Expression,
+        assignment: PatternSuperExpression,
+    },
     Variable {
         assignee: Identifier,
         assignment: SuperExpression,
@@ -394,17 +399,18 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Assignment {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
-        match pair.as_rule() {
+        let inner = CollyParser::first_inner_for_pair(pair)?;
+        match inner.as_rule() {
             Rule::PatternAssignment => {
-                Assignment::from_pattern_assignment(pair)
+                Assignment::from_pattern_assignment(inner)
             }
             Rule::VariableAssignment => {
-                Assignment::from_variable_assignment(pair)
+                Assignment::from_variable_assignment(inner)
             }
             Rule::PropertiesAssignment => {
-                Assignment::form_properties_assignment(pair)
+                Assignment::form_properties_assignment(inner)
             }
-            _ => CollyParser::rule_error(&pair),
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }
@@ -416,30 +422,35 @@ impl Assignment {
         let mut inner = pair.into_inner();
         let variable: ParseResult<Expression> =
             Expression::from_variant(inner.next().unwrap());
-        if let Expression::Variable(identifier) = variable? {
-            let assignment: ParseResult<SuperExpression> =
-                inner.next().unwrap().try_into();
+        if let Expression::Variable(assignee) = variable? {
+            let assignment: SuperExpression =
+                inner.next().unwrap().try_into()?;
             return Ok(Assignment::Variable {
-                assignee: identifier,
-                assignment: assignment?,
+                assignee,
+                assignment,
             });
         }
         Err(error)
     }
 
     fn from_pattern_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
-        unimplemented!()
+        let mut inner = pair.into_inner();
+        let assignee = Expression::from_variant(inner.next().unwrap())?;
+        let assignment: PatternSuperExpression =
+            inner.next().unwrap().try_into()?;
+        Ok(Assignment::Pattern {
+            assignee,
+            assignment,
+        })
     }
 
     fn form_properties_assignment(pair: Pair<Rule>) -> ParseResult<Self> {
         let mut inner = pair.into_inner();
-        let assignee: ParseResult<SuperExpression> =
-            inner.next().unwrap().try_into();
-        let assignment: ParseResult<Properties> =
-            inner.next().unwrap().try_into();
+        let assignee: SuperExpression = inner.next().unwrap().try_into()?;
+        let assignment: Properties = inner.next().unwrap().try_into()?;
         Ok(Assignment::Properties {
-            assignee: assignee?,
-            assignment: assignment?,
+            assignee,
+            assignment,
         })
     }
 }
@@ -558,7 +569,8 @@ impl<'a> TryFrom<Pair<'a, Rule>> for EventGroup {
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        let events: ParseResult<Vec<Event>> = inner.map(Event::try_from).collect();
+        let events: ParseResult<Vec<Event>> =
+            inner.map(Event::try_from).collect();
         Ok(EventGroup(events?))
     }
 }
@@ -579,7 +591,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Event {
         match inner.as_rule() {
             Rule::Chord => Self::from_chord(inner),
             Rule::Group => Self::from_group(inner),
-            Rule::ParenthesisedEventGroup => Self::from_parenthesised_event_group(inner),
+            Rule::ParenthesisedEventGroup => {
+                Self::from_parenthesised_event_group(inner)
+            }
             _ => CollyParser::rule_error(&inner),
         }
     }
@@ -729,7 +743,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Modulation {
         match inner.as_rule() {
             Rule::ModulationSymbol => Self::from_symbol(inner),
             Rule::LiteralModulation => Self::from_literal_modulation(inner),
-            _ => CollyParser::rule_error(&inner)
+            _ => CollyParser::rule_error(&inner),
         }
     }
 }

@@ -39,7 +39,7 @@ PropertyGetter = { (Variable
     | Properties) ~ NEWLINE? ~ ("." ~ NEWLINE? ~ Identifier ~ NEWLINE?)+ }
 Properties = { "{" ~ NEWLINE* ~ KvPair ~ NEWLINE* ~ ("," ~ NEWLINE* ~ KvPair)* ~ NEWLINE* ~ "}" }
 KvPair = { NEWLINE* ~ Identifier ~ NEWLINE* ~ ":" ~ NEWLINE* ~ PropertyValue ~ NEWLINE* }
-PropertyValue = { SuperExpression | PatternExpression }
+PropertyValue = { PatternExpression | SuperExpression }
 Variable = ${ ":" ~ Identifier }
 String = ${ "\"" ~ StringInner ~ "\"" }
 StringInner = @{ Char* }
