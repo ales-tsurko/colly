@@ -357,10 +357,8 @@ fn test_parse_variable_assignment() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<Assignment> = parse_source_for_rule(
-        ":foo = bar (baz true)",
-        Rule::AssignStatement,
-    );
+    let result: ParseResult<Assignment> =
+        parse_source_for_rule(":foo = bar (baz true)", Rule::AssignStatement);
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
         assignment: SuperExpression::Method(MethodCall {

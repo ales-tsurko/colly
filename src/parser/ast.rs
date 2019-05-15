@@ -7,6 +7,7 @@
 mod tests;
 use crate::parser::Rule;
 use crate::parser::{CollyParser, ParseResult};
+use crate::types::Identifier;
 use pest::Parser;
 use pest::{
     error::Error,
@@ -230,8 +231,8 @@ impl Expression {
 }
 
 //
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct Identifier(pub String);
+// #[derive(Debug, Clone, Hash, Eq, PartialEq)]
+// pub struct Identifier(pub String);
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Identifier {
     type Error = Error<Rule>;
