@@ -1,29 +1,25 @@
 use crate::parser::ast::*;
-use crate::types::{Function, Identifier, Mixer};
+use crate::primitives::{Function, Identifier, Mixer, ValueWrapper};
 use std::collections::HashMap;
 use failure_derive::Fail;
 
-type InterpreterResult<T> = Result<T, InterpreterError>;
-
-pub struct Interpreter {
-    mixer: Mixer,
-    variables_table: HashMap<Identifier, SuperExpression>,
-    functions_table: HashMap<Identifier, Box<Function>>,
+pub trait Interpreter {
+    fn interpret(&self, context: &mut Context) -> Result<(), InterpreterError>;
 }
 
-impl<'a> Default for Interpreter {
+pub struct Context {
+    mixer: Mixer,
+    variables_table: HashMap<Identifier, SuperExpression>,
+    functions_table: HashMap<Identifier, Box<Function<Item = ValueWrapper>>>,
+}
+
+impl Default for Context {
     fn default() -> Self {
-        Interpreter {
+        Context {
             mixer: Mixer::default(),
             variables_table: HashMap::new(),
             functions_table: HashMap::new(),
         }
-    }
-}
-
-impl Interpreter {
-    pub fn inperpret_ast(ast: &Ast) -> InterpreterResult<()> {
-        unimplemented!()
     }
 }
 

@@ -7,7 +7,7 @@ pub use mixer::*;
 pub use pattern::*;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Value<T> {
     inner: T,
 }
@@ -20,8 +20,8 @@ pub enum ValueWrapper {
     String(Value<String>),
     Properties(Value<Properties>),
     Array(Value<Vec<ValueWrapper>>),
-    Function(Box<Function>),
-    Patter(Value<Pattern>),
+    Function(Box<Function<Item = ValueWrapper>>),
+    Pattern(Value<Pattern>),
     Mixer(Value<Mixer>),
     Track(Value<Track>),
     Slot(Value<Slot>),
