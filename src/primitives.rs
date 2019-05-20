@@ -6,6 +6,7 @@ pub use function::*;
 pub use mixer::*;
 pub use pattern::*;
 use std::collections::HashMap;
+use std::fmt;
 
 type PremitiveResult<T> = Result<T, PrimitiveError>;
 
@@ -20,13 +21,50 @@ pub enum ValueWrapper {
     String(Value<String>),
     Properties(Value<Properties>),
     Array(Value<Vec<ValueWrapper>>),
-    Function(Box<Function<Item = ValueWrapper>>),
+    Function(Value<Box<Function<Item = ValueWrapper>>>),
     Pattern(Value<Pattern>),
     Mixer(Value<Mixer>),
     Track(Value<Track>),
     Slot(Value<Slot>),
     Void(Value<()>),
     Nothing,
+}
+
+pub enum TypeId {
+    Identifier,
+    Boolean,
+    Number,
+    Pattern,
+    String,
+    Properties,
+    Array,
+    Function,
+    Mixer,
+    Track,
+    Slot,
+    Void,
+    Nothing,
+}
+
+impl fmt::Display for TypeId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use TypeId::*;
+        match self {
+            Identifier => write!(f, "<Identifier>"),
+            Boolean => write!(f, "<Boolean>"),
+            Number => write!(f, "<Number>"),
+            Pattern => write!(f, "<Pattern>"),
+            String => write!(f, "<String>"),
+            Properties => write!(f, "<Properties>"),
+            Array => write!(f, "<Array>"),
+            Function => write!(f, "<Function>"),
+            Mixer => write!(f, "<Mixer>"),
+            Track => write!(f, "<Track>"),
+            Slot => write!(f, "<Slot>"),
+            Void => write!(f, "<Void>"),
+            Nothing => write!(f, "<Nothing>"),
+        }
+    }
 }
 
 macro_rules! impl_from_for_value_wrapper {
@@ -49,6 +87,7 @@ impl_from_for_value_wrapper!(Pattern, Pattern);
 impl_from_for_value_wrapper!(Mixer, Mixer);
 impl_from_for_value_wrapper!(Track, Track);
 impl_from_for_value_wrapper!(Slot, Slot);
+impl_from_for_value_wrapper!(Box<Function<Item = ValueWrapper>>, Function);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Identifier(pub String);

@@ -1,30 +1,23 @@
-use super::{Identifier, ValueWrapper};
-use std::fmt::Debug;
+use super::{Identifier, ValueWrapper, TypeId};
+use std::fmt;
 
-pub trait Function: Debug + Iterator + FunctionClone {
+pub trait Function: fmt::Debug + Iterator + FunctionClone + Guide {
     fn identifier(&self) -> Identifier;
-    fn arguments(&self) -> Vec<Argument>;
+    fn arguments(&self) -> Vec<TypeId>;
+    fn returns(&self) -> TypeId;
     fn set_arguments(&mut self, arguments: Vec<ValueWrapper>);
 }
 
-pub enum Argument {
-    Identifier,
-    Boolean,
-    Number,
-    Pattern,
-    String,
-    Properties,
-    Array,
-    Function,
-    Track,
-    Slot,
+pub trait Guide {
+    fn description(&self) -> &'static str;
+    fn help(&self) -> &'static str;
 }
 
 pub trait FunctionClone {
     fn clone_box(&self) -> Box<Function<Item = ValueWrapper>>;
 }
 
-impl<T> FunctionClone for T
+impl<'a, T> FunctionClone for T
 where
     T: 'static + Function<Item = ValueWrapper> + Clone,
 {
