@@ -1,5 +1,5 @@
 use crate::parser::ast::*;
-use crate::primitives::{Function, Identifier, Mixer, ValueWrapper};
+use crate::primitives::{Function, Identifier, Mixer, ValueWrapper, Value};
 use std::collections::HashMap;
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
@@ -100,12 +100,21 @@ impl Interpreter for Expression {
             Expression::Number(value) => Ok(ValueWrapper::from(value)),
             Expression::String(value) => Ok(ValueWrapper::from(value)),
             // PatternSlot((u64, u64)),
-            // Track(u64),
+            Expression::Track(index) => Ok(self.interpret_track(index as usize, context)),
             // Mixer,
             // Properties(Properties),
             // Array(Vec<SuperExpression>),
             // Function(FunctionExpression),
             _ => unimplemented!(),
+        }
+    }
+}
+
+impl Expression {
+    fn interpret_track(&self, index: usize, context: &mut Context) -> ValueWrapper {
+        match context.mixer.clone_track(index) {
+            Some(track) => ValueWrapper::from(track),
+            None => ValueWrapper::Nothing
         }
     }
 }

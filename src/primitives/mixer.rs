@@ -1,5 +1,4 @@
 use super::pattern::Pattern;
-use super::{ValueWrapper, Value};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Mixer {
@@ -7,17 +6,23 @@ pub struct Mixer {
 }
 
 impl Mixer {
-    pub fn track(&mut self, index: usize) -> Option<&mut Track> {
+    pub fn clone_track(&mut self, index: usize) -> Option<Track> {
         if index > self.tracks.len() {
             return None;
         }
         
-        Some(&mut self.tracks[index])
+        Some(self.tracks[index].clone())
+    }
+
+    pub fn set_track(&mut self, track: Track) {
+        let index = track.index;
+        self.tracks[index] = track;
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Track {
+    index: usize,
     slots: Vec<Slot>,
 }
 
