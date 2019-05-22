@@ -2,7 +2,7 @@ use super::pattern::Pattern;
 use std::rc::Rc;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Mixer {
     tracks: HashMap<usize, Rc<Track>>,
 }
@@ -14,7 +14,7 @@ impl Mixer {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Track {
     slots: HashMap<usize, Rc<Slot>>,
 }
@@ -26,7 +26,7 @@ impl Track {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Slot {
     pattern: Pattern,
 }
