@@ -1,6 +1,7 @@
 use crate::parser::ast::*;
-use crate::primitives::{Function, Identifier, Mixer, ValueWrapper, Value};
+use crate::primitives::{Function, Identifier, Mixer, Value, ValueWrapper};
 use std::collections::HashMap;
+use std::rc::Rc;
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
@@ -99,9 +100,17 @@ impl Interpreter for Expression {
             // Pattern(Pattern),
             Expression::Number(value) => Ok(ValueWrapper::from(value)),
             Expression::String(value) => Ok(ValueWrapper::from(value)),
-            // PatternSlot((u64, u64)),
-            Expression::Track(index) => Ok(self.interpret_track(index as usize, context)),
-            // Mixer,
+            Expression::PatternSlot((track_n, slot_n)) => {
+                Expression::interpret_slot(
+                    track_n as usize,
+                    slot_n as usize,
+                    context,
+                )
+            }
+            Expression::Track(index) => {
+                Ok(ValueWrapper::from(context.mixer.track(index as usize)))
+            }
+            Expression::Mixer => Ok(ValueWrapper::Mixer),
             // Properties(Properties),
             // Array(Vec<SuperExpression>),
             // Function(FunctionExpression),
@@ -111,10 +120,17 @@ impl Interpreter for Expression {
 }
 
 impl Expression {
-    fn interpret_track(&self, index: usize, context: &mut Context) -> ValueWrapper {
-        match context.mixer.clone_track(index) {
-            Some(track) => ValueWrapper::from(track),
-            None => ValueWrapper::Nothing
+    fn interpret_slot(
+        track_n: usize,
+        slot_n: usize,
+        context: &mut Context,
+    ) -> InterpreterResult<ValueWrapper> {
+        match Rc::get_mut(&mut context.mixer.track(track_n)) {
+            Some(track) => Ok(ValueWrapper::from(track.slot(slot_n))),
+            None => Err(InterpreterError::Rule(
+                "expression".into(),
+                "Cannot get track reference".into(),
+            )),
         }
     }
 }
@@ -143,6 +159,6 @@ impl Interpreter for Assignment {
 
 #[derive(Debug, Fail)]
 pub enum InterpreterError {
-    #[fail(display = "Error interpret AST.")]
-    InterpretAst,
+    #[fail(display = "Error interpret {}: {}", 0, 1)]
+    Rule(String, String),
 }

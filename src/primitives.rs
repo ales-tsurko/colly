@@ -7,6 +7,7 @@ pub use mixer::*;
 pub use pattern::*;
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 
 type PremitiveResult<T> = Result<T, PrimitiveError>;
 
@@ -23,9 +24,9 @@ pub enum ValueWrapper {
     Array(Value<Vec<ValueWrapper>>),
     Function(Value<Box<Function<Item = ValueWrapper>>>),
     Pattern(Value<Pattern>),
-    Mixer(Value<Mixer>),
-    Track(Value<Track>),
-    Slot(Value<Slot>),
+    Mixer, // we'll get mixer from context
+    Track(Value<Rc<Track>>),
+    Slot(Value<Rc<Slot>>),
     Void(Value<()>),
     Nothing,
 }
@@ -84,9 +85,8 @@ impl_from_for_value_wrapper!(String, String);
 impl_from_for_value_wrapper!(Properties, Properties);
 impl_from_for_value_wrapper!(Vec<ValueWrapper>, Array);
 impl_from_for_value_wrapper!(Pattern, Pattern);
-impl_from_for_value_wrapper!(Mixer, Mixer);
-impl_from_for_value_wrapper!(Track, Track);
-impl_from_for_value_wrapper!(Slot, Slot);
+impl_from_for_value_wrapper!(Rc<Track>, Track);
+impl_from_for_value_wrapper!(Rc<Slot>, Slot);
 impl_from_for_value_wrapper!(Box<Function<Item = ValueWrapper>>, Function);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

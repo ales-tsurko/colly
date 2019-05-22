@@ -1,38 +1,28 @@
 use super::pattern::Pattern;
+use std::rc::Rc;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Mixer {
-    tracks: Vec<Track>,
+    tracks: HashMap<usize, Rc<Track>>,
 }
 
 impl Mixer {
-    pub fn clone_track(&mut self, index: usize) -> Option<Track> {
-        if index > self.tracks.len() {
-            return None;
-        }
-        
-        Some(self.tracks[index].clone())
-    }
-
-    pub fn set_track(&mut self, track: Track) {
-        let index = track.index;
-        self.tracks[index] = track;
+    pub fn track(&mut self, index: usize) -> Rc<Track> {
+        self.tracks.entry(index).or_insert(Rc::new(Track::default()));
+        self.tracks[&index].clone()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Track {
-    index: usize,
-    slots: Vec<Slot>,
+    slots: HashMap<usize, Rc<Slot>>,
 }
 
 impl Track {
-    pub fn slot(&mut self, index: usize) -> Option<&mut Slot> {
-        if index > self.slots.len() {
-            return None;
-        }
-
-        Some(&mut self.slots[index])
+    pub fn slot(&mut self, index: usize) -> Rc<Slot> {
+        self.slots.entry(index).or_default();
+        self.slots[&index].clone()
     }
 }
 
