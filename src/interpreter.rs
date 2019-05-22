@@ -97,7 +97,7 @@ impl Interpreter for Expression {
             Expression::Boolean(value) => Ok(ValueWrapper::from(value)),
             Expression::Identifier(value) => Ok(ValueWrapper::from(value)),
             Expression::Variable(id) => Ok(context.variables.get(&id)),
-            // Pattern(Pattern),
+            Expression::Pattern(value) => unimplemented!(),
             Expression::Number(value) => Ok(ValueWrapper::from(value)),
             Expression::String(value) => Ok(ValueWrapper::from(value)),
             Expression::PatternSlot((track_n, slot_n)) => {

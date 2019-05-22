@@ -1,5 +1,6 @@
 use super::ValueWrapper;
-use std::time::Duration;
+use crate::clock::Clock;
+use crate::parser::ast;
 
 #[derive(Debug, Clone, Default)]
 pub struct Pattern {
@@ -29,13 +30,43 @@ impl Iterator for EventStream {
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    Normal(f64, Duration),
-    Pause(Duration),
-    Input(ValueWrapper),
+    Normal(f64, EventRange),
+    Pause(EventRange),
+    Input(EventStream),
 }
 
 impl Default for Event {
     fn default() -> Self {
-        Event::Pause(Duration::default())
+        Event::Pause(EventRange::default())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct EventRange {
+    start: u64,
+    end: u64,
+}
+
+impl Pattern {
+    fn new_with(ast_pattern: ast::Pattern, clock: &Clock) -> Self {
+        let beat_length = clock.beat_length() as f64;
+        for group in ast_pattern.0.into_iter() {
+
+        }
+        unimplemented!()
+    }
+
+    fn interpret_group(group: ast::EventGroup, beat_length: u64) -> Vec<Event> {
+        unimplemented!()
+    }
+
+    fn interpret_event(event: ast::Event) -> Vec<Event> {
+        unimplemented!()
+    }
+}
+
+impl From<ast::EventGroup> for Vec<Event> {
+    fn from(group: ast::EventGroup) -> Self {
+        unimplemented!()
     }
 }

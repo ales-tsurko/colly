@@ -1,10 +1,12 @@
 use super::pattern::Pattern;
 use std::collections::HashMap;
 use std::rc::Rc;
+use crate::clock::Clock;
 
 #[derive(Debug, Clone, Default)]
 pub struct Mixer {
     tracks: HashMap<usize, Rc<Track>>,
+    clock: Clock,
 }
 
 impl Mixer {
