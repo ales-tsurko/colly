@@ -1,5 +1,7 @@
 use crate::parser::ast::*;
-use crate::primitives::{Function, Identifier, Mixer, Value, ValueWrapper};
+use crate::primitives::{
+    self, Function, Identifier, Mixer, Value, ValueWrapper,
+};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -153,6 +155,37 @@ impl Interpreter for Assignment {
         self,
         context: &mut Context,
     ) -> InterpreterResult<Self::Value> {
+        unimplemented!()
+    }
+}
+
+impl Interpreter for Pattern {
+    type Value = primitives::Pattern;
+
+    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
+        let mut events: Vec<primitives::Event> = Vec::new();
+        for group in self.0.into_iter() {
+            events.append(&mut group.interpret(context)?);
+        }
+
+        Ok(primitives::Pattern {
+            stream: events.into(),
+        })
+    }
+}
+
+impl Interpreter for EventGroup {
+    type Value = Vec<primitives::Event>;
+
+    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
+        unimplemented!()
+    }
+}
+
+impl Interpreter for Event {
+    type Value = Vec<primitives::Event>;
+
+    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
         unimplemented!()
     }
 }

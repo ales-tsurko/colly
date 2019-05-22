@@ -4,13 +4,22 @@ use crate::parser::ast;
 
 #[derive(Debug, Clone, Default)]
 pub struct Pattern {
-    stream: EventStream,
+    pub stream: EventStream,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct EventStream {
     events: Vec<Event>,
     increment: usize,
+}
+
+impl From<Vec<Event>> for EventStream {
+    fn from(events: Vec<Event>) -> Self {
+        EventStream {
+            events,
+            increment: 0
+        }
+    }
 }
 
 impl Iterator for EventStream {
@@ -47,26 +56,3 @@ pub struct EventRange {
     end: u64,
 }
 
-impl Pattern {
-    fn new_with(ast_pattern: ast::Pattern, clock: &Clock) -> Self {
-        let beat_length = clock.beat_length() as f64;
-        for group in ast_pattern.0.into_iter() {
-
-        }
-        unimplemented!()
-    }
-
-    fn interpret_group(group: ast::EventGroup, beat_length: u64) -> Vec<Event> {
-        unimplemented!()
-    }
-
-    fn interpret_event(event: ast::Event) -> Vec<Event> {
-        unimplemented!()
-    }
-}
-
-impl From<ast::EventGroup> for Vec<Event> {
-    fn from(group: ast::EventGroup) -> Self {
-        unimplemented!()
-    }
-}
