@@ -1,6 +1,6 @@
 use super::pattern::Pattern;
-use std::rc::Rc;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Default)]
 pub struct Mixer {
@@ -9,8 +9,7 @@ pub struct Mixer {
 
 impl Mixer {
     pub fn track(&mut self, index: usize) -> Rc<Track> {
-        self.tracks.entry(index).or_insert(Rc::new(Track::default()));
-        self.tracks[&index].clone()
+        self.tracks.entry(index).or_default().clone()
     }
 }
 
@@ -21,8 +20,7 @@ pub struct Track {
 
 impl Track {
     pub fn slot(&mut self, index: usize) -> Rc<Slot> {
-        self.slots.entry(index).or_default();
-        self.slots[&index].clone()
+        self.slots.entry(index).or_default().clone()
     }
 }
 
