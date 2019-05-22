@@ -99,7 +99,9 @@ impl Interpreter for Expression {
             Expression::Boolean(value) => Ok(ValueWrapper::from(value)),
             Expression::Identifier(value) => Ok(ValueWrapper::from(value)),
             Expression::Variable(id) => Ok(context.variables.get(&id)),
-            Expression::Pattern(value) => unimplemented!(),
+            Expression::Pattern(value) => {
+                Ok(ValueWrapper::from(value.interpret(context)?))
+            }
             Expression::Number(value) => Ok(ValueWrapper::from(value)),
             Expression::String(value) => Ok(ValueWrapper::from(value)),
             Expression::PatternSlot((track_n, slot_n)) => {
@@ -162,7 +164,10 @@ impl Interpreter for Assignment {
 impl Interpreter for Pattern {
     type Value = primitives::Pattern;
 
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
+    fn interpret(
+        self,
+        context: &mut Context,
+    ) -> InterpreterResult<Self::Value> {
         let mut events: Vec<primitives::Event> = Vec::new();
         for group in self.0.into_iter() {
             events.append(&mut group.interpret(context)?);
@@ -177,7 +182,10 @@ impl Interpreter for Pattern {
 impl Interpreter for EventGroup {
     type Value = Vec<primitives::Event>;
 
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
+    fn interpret(
+        self,
+        context: &mut Context,
+    ) -> InterpreterResult<Self::Value> {
         unimplemented!()
     }
 }
@@ -185,7 +193,10 @@ impl Interpreter for EventGroup {
 impl Interpreter for Event {
     type Value = Vec<primitives::Event>;
 
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Self::Value> {
+    fn interpret(
+        self,
+        context: &mut Context,
+    ) -> InterpreterResult<Self::Value> {
         unimplemented!()
     }
 }
