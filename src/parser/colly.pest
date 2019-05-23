@@ -70,9 +70,9 @@ EventGroup = ${ Event+ }
 Event = { Group | Chord | ParenthesisedEventGroup }
 ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ ")" }
 Chord = ${ "[" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ "]" }
-Group = ${ !EventMethod ~ PatternAtom+ }
+Group = ${ PatternAtom+ }
 PatternAtom = { 
-     EventMethod 
+	EventMethod
     | Octave 
     | Alteration
     | Pitch

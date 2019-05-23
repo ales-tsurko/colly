@@ -1,3 +1,4 @@
+use crate::clock::Clock;
 use crate::parser::ast::*;
 use crate::primitives::{
     self, Function, Identifier, Mixer, Value, ValueWrapper,
@@ -169,8 +170,16 @@ impl Interpreter for Pattern {
         context: &mut Context,
     ) -> InterpreterResult<Self::Value> {
         let mut events: Vec<primitives::Event> = Vec::new();
-        for group in self.0.into_iter() {
-            events.append(&mut group.interpret(context)?);
+        let beat_length = context.mixer.clock.beat_length();
+        for (n, group) in self.0.into_iter().enumerate() {
+            events.append(
+                &mut EventGroupNode {
+                    level: 0,
+                    event_group: group,
+                    start_position: beat_length * (n as u64),
+                }
+                .interpret(context)?,
+            );
         }
 
         Ok(primitives::Pattern {
@@ -179,24 +188,107 @@ impl Interpreter for Pattern {
     }
 }
 
-impl Interpreter for EventGroup {
-    type Value = Vec<primitives::Event>;
+//
+trait Node {
+    fn start_position(&self) -> u64;
 
-    fn interpret(
-        self,
-        context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
-        unimplemented!()
+    fn level(&self) -> u64;
+
+    fn beat_divisor(&self) -> u64 {
+        self.level().pow(2)
+    }
+
+    fn beat_length(&self, clock: &Clock) -> u64 {
+        clock.beat_length() / self.beat_divisor()
     }
 }
 
-impl Interpreter for Event {
+#[derive(Debug, Clone)]
+struct EventGroupNode {
+    level: u64,
+    event_group: EventGroup,
+    start_position: u64,
+}
+
+impl Node for EventGroupNode {
+    fn level(&self) -> u64 {
+        self.level
+    }
+
+    fn start_position(&self) -> u64 {
+        self.start_position
+    }
+}
+
+impl Interpreter for EventGroupNode {
     type Value = Vec<primitives::Event>;
 
     fn interpret(
         self,
         context: &mut Context,
     ) -> InterpreterResult<Self::Value> {
+        let mut events: Vec<primitives::Event> = Vec::new();
+        let beat_length = self.beat_length(&context.mixer.clock);
+        for (n, event) in self.clone().event_group.0.into_iter().enumerate() {
+            events.append(
+                &mut EventNode {
+                    level: self.level(),
+                    event: event,
+                    start_position: beat_length * (n as u64),
+                }
+                .interpret(context)?,
+            );
+        }
+
+        Ok(events)
+    }
+}
+
+#[derive(Debug, Clone)]
+struct EventNode {
+    level: u64,
+    event: Event,
+    start_position: u64,
+}
+
+impl Node for EventNode {
+    fn level(&self) -> u64 {
+        self.level
+    }
+
+    fn start_position(&self) -> u64 {
+        self.start_position
+    }
+}
+
+impl Interpreter for EventNode {
+    type Value = Vec<primitives::Event>;
+
+    fn interpret(
+        self,
+        context: &mut Context,
+    ) -> InterpreterResult<Self::Value> {
+        match self.clone().event {
+            Event::Group(atoms) => self.interpret_group(atoms, context),
+            Event::Chord(event_groups) => unimplemented!(),
+            Event::ParenthesisedEvent(event_groups) => unimplemented!(),
+        }
+    }
+}
+
+impl EventNode {
+    fn interpret_group(
+        self,
+        atoms: Vec<PatternAtom>,
+        context: &Context,
+    ) -> InterpreterResult<Vec<primitives::Event>> {
+        let beat_length = self.beat_length(&context.mixer.clock);
+        let event_length = beat_length / (atoms.len() as u64);
+        for (n, atom) in atoms.into_iter().enumerate() {
+            let start_position = self.start_position() + (event_length * (n as u64));
+            //TODO interpret atom
+        }
+
         unimplemented!()
     }
 }

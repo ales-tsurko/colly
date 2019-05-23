@@ -6,7 +6,7 @@ use crate::clock::Clock;
 #[derive(Debug, Clone, Default)]
 pub struct Mixer {
     tracks: HashMap<usize, Rc<Track>>,
-    clock: Clock,
+    pub clock: Clock,
 }
 
 impl Mixer {

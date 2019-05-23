@@ -38,15 +38,32 @@ impl Iterator for EventStream {
 }
 
 #[derive(Debug, Clone)]
-pub enum Event {
-    Normal(f64, EventRange),
-    Pause(EventRange),
-    Input(EventStream),
+pub struct Event {
+    etype: EventType,
+    state: EventState,
+    position: u64,
+}
+
+#[derive(Debug, Clone)]
+pub enum EventState {
+    On,
+    Off,
+}
+
+#[derive(Debug, Clone)]
+pub enum EventType {
+    Normal(f64),
+    Pause,
+    Input,
 }
 
 impl Default for Event {
     fn default() -> Self {
-        Event::Pause(EventRange::default())
+        Event {
+            etype: EventType::Pause,
+            state: EventState::Off,
+            position: 0,
+        }
     }
 }
 
