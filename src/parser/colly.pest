@@ -67,18 +67,17 @@ PatternExpression = { Pattern ~ PatternInnerMethod? ~ ("=>" ~ FunctionExpression
 PatternInnerMethod = { FunctionExpression }
 Pattern = { "|" ~ EventGroup* ~  "|" }
 EventGroup = ${ Event+ }
-Event = { Group | Chord | ParenthesisedEventGroup }
+Event = { Group | Chord | ParenthesisedEventGroup | EventMethod }
 ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ ")" }
 Chord = ${ "[" ~ WHITESPACE* ~ (EventGroup ~ WHITESPACE*)+ ~ "]" }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
-	EventMethod
-    | Octave 
+    Octave 
     | Alteration
     | Pitch
     | Pause
-    | PatternInput
-    | Modulation }
+    | Modulation
+    | PatternInput }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
 PatternInput = { "%" }

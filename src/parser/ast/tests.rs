@@ -580,6 +580,20 @@ fn test_pattern_assignment() {
     assert_eq!(expected, result.unwrap());
 }
 
+#[test]
+fn test_parse_event_method() {
+    let result: ParseResult<EventGroup> =
+        parse_source_for_rule("*:._", Rule::EventGroup);
+    let expected = EventGroup(vec![
+        Event::EventMethod(EventMethod::Multiply),
+        Event::EventMethod(EventMethod::Divide),
+        Event::EventMethod(EventMethod::Dot),
+        Event::EventMethod(EventMethod::Tie),
+    ]);
+
+    assert_eq!(expected, result.unwrap()); 
+}
+
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {

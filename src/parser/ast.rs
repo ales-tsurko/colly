@@ -582,6 +582,7 @@ pub enum Event {
     Group(Vec<PatternAtom>),
     Chord(Vec<EventGroup>),
     ParenthesisedEvent(Vec<EventGroup>),
+    EventMethod(EventMethod),
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Event {
@@ -595,6 +596,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Event {
             Rule::ParenthesisedEventGroup => {
                 Self::from_parenthesised_event_group(inner)
             }
+            Rule::EventMethod => Self::from_event_method(inner),
             _ => CollyParser::rule_error(&inner),
         }
     }
@@ -621,12 +623,20 @@ impl Event {
             inner.map(EventGroup::try_from).collect();
         Ok(Event::ParenthesisedEvent(groups?))
     }
+
+    fn from_event_method(pair: Pair<Rule>) -> ParseResult<Self> {
+        // dbg!(&pair);
+        Ok(Event::EventMethod(pair.try_into()?))
+        //     let inner = pair.into_inner();
+        // let atoms: ParseResult<Vec<PatternAtom>> =
+        //     inner.map(PatternAtom::try_from).collect();
+        // Ok(Event::Group(atoms?))    
+    }
 }
 
 //
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternAtom {
-    EventMethod(EventMethod),
     Octave(Octave),
     Alteration(Alteration),
     Pitch(u64),
@@ -642,9 +652,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
         let inner = CollyParser::first_inner_for_pair(pair)?;
 
         match inner.as_rule() {
-            Rule::EventMethod => {
-                Ok(PatternAtom::EventMethod(inner.try_into()?))
-            }
             Rule::Octave => Ok(PatternAtom::Octave(inner.try_into()?)),
             Rule::Alteration => Ok(PatternAtom::Alteration(inner.try_into()?)),
             Rule::Pitch => Self::from_pitch(inner),

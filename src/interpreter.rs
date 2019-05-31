@@ -272,6 +272,7 @@ impl Interpreter for EventNode {
             Event::Group(atoms) => self.interpret_group(atoms, context),
             Event::Chord(event_groups) => unimplemented!(),
             Event::ParenthesisedEvent(event_groups) => unimplemented!(),
+            Event::EventMethod(event_method) => unimplemented!(),
         }
     }
 }
