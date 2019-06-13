@@ -4,5 +4,5 @@ extern crate pest_derive;
 extern crate failure;
 pub mod interpreter;
 pub mod parser;
-pub mod primitives;
+pub mod types;
 pub mod clock;

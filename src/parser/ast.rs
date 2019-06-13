@@ -7,7 +7,7 @@
 mod tests;
 use crate::parser::Rule;
 use crate::parser::{CollyParser, ParseResult};
-use crate::primitives::Identifier;
+use crate::types::Identifier;
 use pest::Parser;
 use pest::{
     error::Error,

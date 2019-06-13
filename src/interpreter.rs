@@ -1,6 +1,6 @@
 use crate::clock::Clock;
-use crate::parser::ast::*;
-use crate::primitives::{
+use crate::parser::ast;
+use crate::types::{
     self, Function, Identifier, Mixer, Value, ValueWrapper,
 };
 use std::collections::HashMap;
@@ -8,10 +8,9 @@ use std::rc::Rc;
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
-pub trait Interpreter {
-    type Value;
+pub trait Interpreter<Value> {
     fn interpret(self, context: &mut Context)
-        -> InterpreterResult<Self::Value>;
+        -> InterpreterResult<Value>;
 }
 
 pub struct Context<'a> {
@@ -44,13 +43,11 @@ impl<'a> Default for Context<'a> {
     }
 }
 
-impl Interpreter for Ast {
-    type Value = ();
-
+impl Interpreter<()> for ast::Ast {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<()> {
         for statement in self.0.into_iter() {
             statement.interpret(context)?;
         }
@@ -58,44 +55,39 @@ impl Interpreter for Ast {
     }
 }
 
-impl Interpreter for Statement {
-    type Value = ();
-
+impl Interpreter<()> for ast::Statement {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<()> {
         match self {
-            Statement::SuperExpression(value) => {
+            ast::Statement::SuperExpression(value) => {
                 let _ = value.interpret(context)?;
                 Ok(())
             }
-            Statement::Assign(value) => value.interpret(context),
+            ast::Statement::Assign(value) => value.interpret(context),
         }
     }
 }
 
-impl Interpreter for SuperExpression {
-    type Value = ValueWrapper;
-
+impl Interpreter<ValueWrapper> for ast::SuperExpression {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<ValueWrapper> {
         match self {
-            SuperExpression::Expression(value) => value.interpret(context),
-            SuperExpression::Method(value) => value.interpret(context),
+            ast::SuperExpression::Expression(value) => value.interpret(context),
+            ast::SuperExpression::Method(value) => value.interpret(context),
         }
     }
 }
 
-impl Interpreter for Expression {
-    type Value = ValueWrapper;
-
+impl Interpreter<ValueWrapper> for ast::Expression {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<ValueWrapper> {
+            use ast::Expression;
         match self {
             Expression::Boolean(value) => Ok(ValueWrapper::from(value)),
             Expression::Identifier(value) => Ok(ValueWrapper::from(value)),
@@ -124,7 +116,7 @@ impl Interpreter for Expression {
     }
 }
 
-impl Expression {
+impl ast::Expression {
     fn interpret_slot(
         track_n: usize,
         slot_n: usize,
@@ -140,36 +132,30 @@ impl Expression {
     }
 }
 
-impl Interpreter for MethodCall {
-    type Value = ValueWrapper;
-
+impl Interpreter<ValueWrapper> for ast::MethodCall {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<ValueWrapper> {
         unimplemented!()
     }
 }
 
-impl Interpreter for Assignment {
-    type Value = ();
-
+impl Interpreter<()> for ast::Assignment {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<()> {
         unimplemented!()
     }
 }
 
-impl Interpreter for Pattern {
-    type Value = primitives::Pattern;
-
+impl Interpreter<types::Pattern> for ast::Pattern {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
-        let mut events: Vec<primitives::Event> = Vec::new();
+    ) -> InterpreterResult<types::Pattern> {
+        let mut events: Vec<types::Event> = Vec::new();
         let beat_length = context.mixer.clock.beat_length();
         for (n, group) in self.0.into_iter().enumerate() {
             events.append(
@@ -182,7 +168,7 @@ impl Interpreter for Pattern {
             );
         }
 
-        Ok(primitives::Pattern {
+        Ok(types::Pattern {
             stream: events.into(),
         })
     }
@@ -206,7 +192,7 @@ trait Node {
 #[derive(Debug, Clone)]
 struct EventGroupNode {
     level: u64,
-    event_group: EventGroup,
+    event_group: ast::EventGroup,
     start_position: u64,
 }
 
@@ -220,14 +206,12 @@ impl Node for EventGroupNode {
     }
 }
 
-impl Interpreter for EventGroupNode {
-    type Value = Vec<primitives::Event>;
-
+impl Interpreter<Vec<types::Event>> for EventGroupNode {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
-        let mut events: Vec<primitives::Event> = Vec::new();
+    ) -> InterpreterResult<Vec<types::Event>> {
+        let mut events: Vec<types::Event> = Vec::new();
         let beat_length = self.beat_length(&context.mixer.clock);
         for (n, event) in self.clone().event_group.0.into_iter().enumerate() {
             events.append(
@@ -247,7 +231,7 @@ impl Interpreter for EventGroupNode {
 #[derive(Debug, Clone)]
 struct EventNode {
     level: u64,
-    event: Event,
+    event: ast::Event,
     start_position: u64,
 }
 
@@ -261,18 +245,16 @@ impl Node for EventNode {
     }
 }
 
-impl Interpreter for EventNode {
-    type Value = Vec<primitives::Event>;
-
+impl Interpreter<Vec<types::Event>> for EventNode {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<Self::Value> {
+    ) -> InterpreterResult<Vec<types::Event>> {
         match self.clone().event {
-            Event::Group(atoms) => self.interpret_group(atoms, context),
-            Event::Chord(event_groups) => unimplemented!(),
-            Event::ParenthesisedEvent(event_groups) => unimplemented!(),
-            Event::EventMethod(event_method) => unimplemented!(),
+            ast::Event::Group(atoms) => self.interpret_group(atoms, context),
+            ast::Event::Chord(event_groups) => unimplemented!(),
+            ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
+            ast::Event::EventMethod(event_method) => unimplemented!(),
         }
     }
 }
@@ -280,9 +262,9 @@ impl Interpreter for EventNode {
 impl EventNode {
     fn interpret_group(
         self,
-        atoms: Vec<PatternAtom>,
+        atoms: Vec<ast::PatternAtom>,
         context: &Context,
-    ) -> InterpreterResult<Vec<primitives::Event>> {
+    ) -> InterpreterResult<Vec<types::Event>> {
         let beat_length = self.beat_length(&context.mixer.clock);
         let event_length = beat_length / (atoms.len() as u64);
         for (n, atom) in atoms.into_iter().enumerate() {
