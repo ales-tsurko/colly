@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use crate::clock::Clock;
 use crate::parser::ast;
 use crate::types::{

@@ -4,7 +4,7 @@
 // which were checked on the parsing phase.
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 use crate::parser::Rule;
 use crate::parser::{CollyParser, ParseResult};
 use crate::types::Identifier;
@@ -624,7 +624,7 @@ impl Event {
 
     fn from_chord(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        
+
         let mut groups: Vec<EventGroup> = Vec::new();
         let mut methods: Vec<EventMethod> = Vec::new();
         for pair in inner {
@@ -643,7 +643,7 @@ impl Event {
 
     fn from_parenthesised_event(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        
+
         let mut groups: Vec<EventGroup> = Vec::new();
         let mut methods: Vec<EventMethod> = Vec::new();
         for pair in inner {

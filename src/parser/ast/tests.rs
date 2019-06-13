@@ -664,7 +664,7 @@ impl From<Expression> for SuperExpression {
 }
 
 #[allow(dead_code)]
-fn parse_source_for_rule<'a, T>(
+pub(crate) fn parse_source_for_rule<'a, T>(
     source: &'a str,
     rule: Rule,
 ) -> Result<T, T::Error>
