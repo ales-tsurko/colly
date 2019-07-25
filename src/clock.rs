@@ -10,7 +10,7 @@ impl Clock {
         Clock {
             tempo,
             sample_rate,
-            beat_length: sample_rate / (tempo.0/60)
+            beat_length: (sample_rate as f64 / (tempo.0/60.0)) as u64
         }
     }
 
@@ -47,16 +47,16 @@ impl Default for Clock {
 pub struct CursorPosition(u64);
 
 #[derive(Debug, Clone, Copy)]
-pub struct Bpm(u64);
+pub struct Bpm(f64);
 
 impl Bpm {
-    pub fn set(&mut self, value: u64) {
-        self.0 = value.min(200).max(27);
+    pub fn set(&mut self, value: f64) {
+        self.0 = value.min(200.0).max(27.0);
     }
 }
 
 impl Default for Bpm {
     fn default() -> Self {
-        Bpm(117)
+        Bpm(117.0)
     }
 }
