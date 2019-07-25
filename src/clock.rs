@@ -10,7 +10,7 @@ impl Clock {
         Clock {
             tempo,
             sample_rate,
-            beat_length: (sample_rate*60) / tempo.0
+            beat_length: sample_rate / (tempo.0/60)
         }
     }
 
@@ -42,6 +42,9 @@ impl Default for Clock {
         Clock::new(Bpm::default(), 44100)
     }
 }
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct CursorPosition(u64);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bpm(u64);

@@ -548,31 +548,31 @@ impl PatternExpression {
 
 //
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Pattern(pub Vec<EventGroup>);
+pub struct Pattern(pub Vec<BeatEvent>);
 
 impl<'a> TryFrom<Pair<'a, Rule>> for Pattern {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
-        let events: ParseResult<Vec<EventGroup>> =
-            inner.map(EventGroup::try_from).collect();
+        let events: ParseResult<Vec<BeatEvent>> =
+            inner.map(BeatEvent::try_from).collect();
         Ok(Pattern(events?))
     }
 }
 
 //
 #[derive(Debug, Clone, PartialEq)]
-pub struct EventGroup(pub Vec<Event>);
+pub struct BeatEvent(pub Vec<Event>);
 
-impl<'a> TryFrom<Pair<'a, Rule>> for EventGroup {
+impl<'a> TryFrom<Pair<'a, Rule>> for BeatEvent {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
         let events: ParseResult<Vec<Event>> =
             inner.map(Event::try_from).collect();
-        Ok(EventGroup(events?))
+        Ok(BeatEvent(events?))
     }
 }
 
@@ -587,13 +587,13 @@ pub enum Event {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chord {
-    pub inner: Vec<EventGroup>,
+    pub inner: Vec<BeatEvent>,
     pub methods: Vec<EventMethod>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ParenthesisedEvent {
-    pub inner: Vec<EventGroup>,
+    pub inner: Vec<BeatEvent>,
     pub methods: Vec<EventMethod>,
 }
 
@@ -625,11 +625,11 @@ impl Event {
     fn from_chord(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
 
-        let mut groups: Vec<EventGroup> = Vec::new();
+        let mut groups: Vec<BeatEvent> = Vec::new();
         let mut methods: Vec<EventMethod> = Vec::new();
         for pair in inner {
             match pair.as_rule() {
-                Rule::EventGroup => groups.push(pair.try_into()?),
+                Rule::BeatEvent => groups.push(pair.try_into()?),
                 Rule::EventMethod => methods.push(pair.try_into()?),
                 _ => CollyParser::rule_error(&pair)?,
             }
@@ -644,11 +644,11 @@ impl Event {
     fn from_parenthesised_event(pair: Pair<Rule>) -> ParseResult<Self> {
         let inner = pair.into_inner();
 
-        let mut groups: Vec<EventGroup> = Vec::new();
+        let mut groups: Vec<BeatEvent> = Vec::new();
         let mut methods: Vec<EventMethod> = Vec::new();
         for pair in inner {
             match pair.as_rule() {
-                Rule::EventGroup => groups.push(pair.try_into()?),
+                Rule::BeatEvent => groups.push(pair.try_into()?),
                 Rule::EventMethod => methods.push(pair.try_into()?),
                 _ => CollyParser::rule_error(&pair)?,
             }

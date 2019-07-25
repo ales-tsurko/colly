@@ -11,23 +11,20 @@ use std::rc::Rc;
 
 type PremitiveResult<T> = Result<T, PrimitiveError>;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Value<T>(pub T);
-
 #[derive(Debug, Clone)]
-pub enum ValueWrapper {
-    Identifier(Value<Identifier>),
-    Boolean(Value<bool>),
-    Number(Value<f64>),
-    String(Value<String>),
-    Properties(Value<Properties>),
-    Array(Value<Vec<ValueWrapper>>),
-    Function(Value<Box<Function<Item = ValueWrapper>>>),
-    Pattern(Value<Pattern>),
+pub enum Value {
+    Identifier(Identifier),
+    Boolean(bool),
+    Number(f64),
+    String(String),
+    Properties(Properties),
+    Array(Vec<Value>),
+    Function(Box<Function<Item = Value>>),
+    Pattern(Pattern),
     Mixer, // we'll get mixer from context
-    Track(Value<Rc<Track>>),
-    Slot(Value<Rc<Slot>>),
-    Void(Value<()>),
+    Track(Rc<Track>),
+    Slot(Rc<Slot>),
+    Void(()),
     Nothing,
 }
 
@@ -70,9 +67,9 @@ impl fmt::Display for TypeId {
 
 macro_rules! impl_from_for_value_wrapper {
     ($from:ty, $item:ident) => {
-        impl From<$from> for ValueWrapper {
+        impl From<$from> for Value {
             fn from(value: $from) -> Self {
-                ValueWrapper::$item(Value(value))
+                Value::$item(value)
             }
         }
     };
@@ -83,24 +80,24 @@ impl_from_for_value_wrapper!(bool, Boolean);
 impl_from_for_value_wrapper!(f64, Number);
 impl_from_for_value_wrapper!(String, String);
 impl_from_for_value_wrapper!(Properties, Properties);
-impl_from_for_value_wrapper!(Vec<ValueWrapper>, Array);
+impl_from_for_value_wrapper!(Vec<Value>, Array);
 impl_from_for_value_wrapper!(Pattern, Pattern);
 impl_from_for_value_wrapper!(Rc<Track>, Track);
 impl_from_for_value_wrapper!(Rc<Slot>, Slot);
-impl_from_for_value_wrapper!(Box<Function<Item = ValueWrapper>>, Function);
+impl_from_for_value_wrapper!(Box<Function<Item = Value>>, Function);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Identifier(pub String);
 
 #[derive(Debug, Clone)]
-pub struct Properties(pub HashMap<Identifier, ValueWrapper>);
+pub struct Properties(pub HashMap<Identifier, Value>);
 
 pub trait HasProperties {
-    fn property(&self, key: &Identifier) -> Option<ValueWrapper>;
+    fn property(&self, key: &Identifier) -> Option<Value>;
     fn set_property(
         &mut self,
         key: &Identifier,
-        value: ValueWrapper,
+        value: Value,
     ) -> PremitiveResult<()>;
 }
 

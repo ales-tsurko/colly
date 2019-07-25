@@ -11,4 +11,5 @@ fn interpret_pattern() {
     // let pattern: types::Pattern = result.interpret(&mut context).unwrap();
     // let expected = ...;
     // assert_eq!(expected, result);
+    // 0.0 = 1/8 . 1/8 = (1/8 + 1/16) 1/8 = (1/8 + 1/16) (1/8 - 1/16)
 }

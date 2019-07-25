@@ -1,5 +1,5 @@
-use super::ValueWrapper;
-use crate::clock::Clock;
+use super::Value;
+use crate::clock::{Clock, CursorPosition};
 use crate::parser::ast;
 
 #[derive(Debug, Clone, Default)]
@@ -10,14 +10,14 @@ pub struct Pattern {
 #[derive(Debug, Clone, Default)]
 pub struct EventStream {
     events: Vec<Event>,
-    increment: usize,
+    position: usize,
 }
 
 impl From<Vec<Event>> for EventStream {
     fn from(events: Vec<Event>) -> Self {
         EventStream {
             events,
-            increment: 0
+            position: 0
         }
     }
 }
@@ -26,13 +26,13 @@ impl Iterator for EventStream {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.increment < self.events.len() {
-            let event = self.events[self.increment].clone();
-            self.increment += 1;
+        if self.position < self.events.len() {
+            let event = self.events[self.position].clone();
+            self.position += 1;
             return Some(event);
         }
 
-        self.increment = 0;
+        self.position = 0;
         None
     }
 }
@@ -41,7 +41,7 @@ impl Iterator for EventStream {
 pub struct Event {
     etype: EventType,
     state: EventState,
-    position: u64,
+    position: CursorPosition,
 }
 
 #[derive(Debug, Clone)]
@@ -62,7 +62,7 @@ impl Default for Event {
         Event {
             etype: EventType::Pause,
             state: EventState::Off,
-            position: 0,
+            position: CursorPosition::default(),
         }
     }
 }

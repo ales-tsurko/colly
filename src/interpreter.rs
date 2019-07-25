@@ -4,33 +4,33 @@ mod tests;
 use crate::clock::Clock;
 use crate::parser::ast;
 use crate::types::{
-    self, Function, Identifier, Mixer, Value, ValueWrapper,
+    self, Function, Identifier, Mixer, Value,
 };
 use std::collections::HashMap;
 use std::rc::Rc;
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
-pub trait Interpreter<Value> {
+pub trait Interpreter<V> {
     fn interpret(self, context: &mut Context)
-        -> InterpreterResult<Value>;
+        -> InterpreterResult<V>;
 }
 
 pub struct Context<'a> {
     parent: &'a Option<Context<'a>>,
     mixer: Mixer,
     variables: VariablesTable,
-    functions: HashMap<Identifier, Box<Function<Item = ValueWrapper>>>,
+    functions: HashMap<Identifier, Box<Function<Item = Value>>>,
 }
 
 #[derive(Debug, Default)]
-pub struct VariablesTable(pub HashMap<Identifier, ValueWrapper>);
+pub struct VariablesTable(pub HashMap<Identifier, Value>);
 
 impl VariablesTable {
-    fn get(&self, id: &Identifier) -> ValueWrapper {
+    fn get(&self, id: &Identifier) -> Value {
         match self.0.get(id) {
             Some(value) => value.clone(),
-            None => ValueWrapper::Nothing,
+            None => Value::Nothing,
         }
     }
 }
@@ -73,11 +73,11 @@ impl Interpreter<()> for ast::Statement {
     }
 }
 
-impl Interpreter<ValueWrapper> for ast::SuperExpression {
+impl Interpreter<Value> for ast::SuperExpression {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<ValueWrapper> {
+    ) -> InterpreterResult<Value> {
         match self {
             ast::SuperExpression::Expression(value) => value.interpret(context),
             ast::SuperExpression::Method(value) => value.interpret(context),
@@ -85,21 +85,21 @@ impl Interpreter<ValueWrapper> for ast::SuperExpression {
     }
 }
 
-impl Interpreter<ValueWrapper> for ast::Expression {
+impl Interpreter<Value> for ast::Expression {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<ValueWrapper> {
+    ) -> InterpreterResult<Value> {
             use ast::Expression;
         match self {
-            Expression::Boolean(value) => Ok(ValueWrapper::from(value)),
-            Expression::Identifier(value) => Ok(ValueWrapper::from(value)),
+            Expression::Boolean(value) => Ok(Value::from(value)),
+            Expression::Identifier(value) => Ok(Value::from(value)),
             Expression::Variable(id) => Ok(context.variables.get(&id)),
             Expression::Pattern(value) => {
-                Ok(ValueWrapper::from(value.interpret(context)?))
+                Ok(Value::from(value.interpret(context)?))
             }
-            Expression::Number(value) => Ok(ValueWrapper::from(value)),
-            Expression::String(value) => Ok(ValueWrapper::from(value)),
+            Expression::Number(value) => Ok(Value::from(value)),
+            Expression::String(value) => Ok(Value::from(value)),
             Expression::PatternSlot((track_n, slot_n)) => {
                 Expression::interpret_slot(
                     track_n as usize,
@@ -108,9 +108,9 @@ impl Interpreter<ValueWrapper> for ast::Expression {
                 )
             }
             Expression::Track(index) => {
-                Ok(ValueWrapper::from(context.mixer.track(index as usize)))
+                Ok(Value::from(context.mixer.track(index as usize)))
             }
-            Expression::Mixer => Ok(ValueWrapper::Mixer),
+            Expression::Mixer => Ok(Value::Mixer),
             // Properties(Properties),
             // Array(Vec<SuperExpression>),
             // Function(FunctionExpression),
@@ -124,9 +124,9 @@ impl ast::Expression {
         track_n: usize,
         slot_n: usize,
         context: &mut Context,
-    ) -> InterpreterResult<ValueWrapper> {
+    ) -> InterpreterResult<Value> {
         match Rc::get_mut(&mut context.mixer.track(track_n)) {
-            Some(track) => Ok(ValueWrapper::from(track.slot(slot_n))),
+            Some(track) => Ok(Value::from(track.slot(slot_n))),
             None => Err(InterpreterError::Rule(
                 "expression".into(),
                 "Cannot get track reference".into(),
@@ -135,11 +135,11 @@ impl ast::Expression {
     }
 }
 
-impl Interpreter<ValueWrapper> for ast::MethodCall {
+impl Interpreter<Value> for ast::MethodCall {
     fn interpret(
         self,
         context: &mut Context,
-    ) -> InterpreterResult<ValueWrapper> {
+    ) -> InterpreterResult<Value> {
         unimplemented!()
     }
 }
@@ -162,7 +162,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
         let beat_length = context.mixer.clock.beat_length();
         for (n, group) in self.0.into_iter().enumerate() {
             events.append(
-                &mut EventGroupNode {
+                &mut BeatEventNode {
                     level: 0,
                     event_group: group,
                     start_position: beat_length * (n as u64),
@@ -193,13 +193,13 @@ trait Node {
 }
 
 #[derive(Debug, Clone)]
-struct EventGroupNode {
+struct BeatEventNode {
     level: u64,
-    event_group: ast::EventGroup,
+    event_group: ast::BeatEvent,
     start_position: u64,
 }
 
-impl Node for EventGroupNode {
+impl Node for BeatEventNode {
     fn level(&self) -> u64 {
         self.level
     }
@@ -209,7 +209,7 @@ impl Node for EventGroupNode {
     }
 }
 
-impl Interpreter<Vec<types::Event>> for EventGroupNode {
+impl Interpreter<Vec<types::Event>> for BeatEventNode {
     fn interpret(
         self,
         context: &mut Context,
