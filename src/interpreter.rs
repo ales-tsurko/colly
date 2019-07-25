@@ -220,7 +220,7 @@ impl Interpreter<Vec<types::Event>> for BeatEventNode {
             events.append(
                 &mut EventNode {
                     level: self.level(),
-                    event: event,
+                    event,
                     start_position: beat_length * (n as u64),
                 }
                 .interpret(context)?,

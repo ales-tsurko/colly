@@ -66,10 +66,3 @@ impl Default for Event {
         }
     }
 }
-
-#[derive(Debug, Clone, Default)]
-pub struct EventRange {
-    start: u64,
-    end: u64,
-}
-

@@ -10,18 +10,18 @@ impl Clock {
         Clock {
             tempo,
             sample_rate,
-            beat_length: (sample_rate as f64 / (tempo.0/60.0)) as u64
+            beat_length: beat_length_from_tempo(sample_rate, tempo),
         }
     }
 
     pub fn set_tempo(&mut self, tempo: Bpm) {
         self.tempo = tempo;
-        self.beat_length = self.sample_rate*60 / self.tempo.0;
+        self.beat_length = beat_length_from_tempo(self.sample_rate, tempo);
     }
 
     pub fn set_sample_rate(&mut self, sample_rate: u64) {
         self.sample_rate = sample_rate;
-        self.beat_length = self.sample_rate*60 / self.tempo.0;
+        self.beat_length = beat_length_from_tempo(sample_rate, self.tempo);
     }
 
     pub fn beat_length(&self) -> u64 {
@@ -35,6 +35,10 @@ impl Clock {
     pub fn sample_rate(&self) -> u64 {
         self.sample_rate
     }
+}
+
+pub fn beat_length_from_tempo(sample_rate: u64, tempo: Bpm) -> u64 {
+    (sample_rate as f64 / (tempo.0 / 60.0)) as u64
 }
 
 impl Default for Clock {
