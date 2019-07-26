@@ -10,14 +10,14 @@ pub struct Pattern {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EventStream {
     events: Vec<Event>,
-    position: usize,
+    increment: usize,
 }
 
 impl From<Vec<Event>> for EventStream {
     fn from(events: Vec<Event>) -> Self {
         EventStream {
             events,
-            position: 0,
+            increment: 0,
         }
     }
 }
@@ -26,13 +26,13 @@ impl Iterator for EventStream {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.position < self.events.len() {
-            let event = self.events[self.position].clone();
-            self.position += 1;
+        if self.increment < self.events.len() {
+            let event = self.events[self.increment].clone();
+            self.increment += 1;
             return Some(event);
         }
 
-        self.position = 0;
+        self.increment = 0;
         None
     }
 }
