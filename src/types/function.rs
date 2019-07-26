@@ -1,4 +1,4 @@
-use super::{Identifier, Value, TypeId};
+use super::{Identifier, TypeId, Value};
 use std::fmt;
 
 pub trait Function: fmt::Debug + Iterator + FunctionClone + Guide {

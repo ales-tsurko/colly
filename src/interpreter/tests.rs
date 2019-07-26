@@ -3,7 +3,7 @@ use crate::parser::ast::tests;
 use crate::parser::Rule;
 
 #[test]
-fn interpret_pattern() {
+fn interpret_pattern_complex() {
     let mut context = Context::default();
     // let result: ast::Pattern = tests::parse_source_for_rule("|01 2|", Rule::Pattern).unwrap();
 
@@ -15,4 +15,26 @@ fn interpret_pattern() {
     // let pattern: types::Pattern = result.interpret(&mut context).unwrap();
     // let expected = ...;
     // assert_eq!(expected, result);
+}
+
+#[test]
+fn interpret_pattern_simple() {
+    use types::*;
+
+    let mut context = Context::default();
+    let ast_result: ast::Pattern =
+        tests::parse_source_for_rule("| 0 0 0 |", Rule::Pattern).unwrap();
+    let result: Pattern = ast_result.interpret(&mut context).unwrap();
+    let expected = Pattern {
+        stream: EventStream::from(vec![
+            (EventType::Normal(0.0), EventState::On, 0.into()).into(),
+            (EventType::Normal(0.0), EventState::Off, 1.into()).into(),
+            (EventType::Normal(0.0), EventState::On, 1.into()).into(),
+            (EventType::Normal(0.0), EventState::Off, 2.into()).into(),
+            (EventType::Normal(0.0), EventState::On, 2.into()).into(),
+            (EventType::Normal(0.0), EventState::Off, 3.into()).into(),
+        ]),
+    };
+
+    assert_eq!(expected, result);
 }

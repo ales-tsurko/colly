@@ -47,8 +47,14 @@ impl Default for Clock {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct CursorPosition(u64);
+
+impl From<u64> for CursorPosition {
+    fn from(value: u64) -> Self {
+        CursorPosition(value)
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Bpm(f64);

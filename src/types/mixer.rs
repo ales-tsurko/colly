@@ -1,7 +1,7 @@
 use super::pattern::Pattern;
+use crate::clock::Clock;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::clock::Clock;
 
 #[derive(Debug, Clone, Default)]
 pub struct Mixer {

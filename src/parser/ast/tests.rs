@@ -469,17 +469,19 @@ fn parse_event_with_method() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<BeatEvent> = parse_source_for_rule("(01 2)*.", Rule::BeatEvent);
-    let expected = BeatEvent(vec![Event::ParenthesisedEvent(ParenthesisedEvent {
-        inner: vec![
-            BeatEvent(vec![Event::Group(vec![
-                PatternAtom::Pitch(0),
-                PatternAtom::Pitch(1),
-            ])]),
-            BeatEvent(vec![Event::Group(vec![PatternAtom::Pitch(2)])]),
-        ],
-        methods: vec![EventMethod::Multiply, EventMethod::Dot],
-    })]);
+    let result: ParseResult<BeatEvent> =
+        parse_source_for_rule("(01 2)*.", Rule::BeatEvent);
+    let expected =
+        BeatEvent(vec![Event::ParenthesisedEvent(ParenthesisedEvent {
+            inner: vec![
+                BeatEvent(vec![Event::Group(vec![
+                    PatternAtom::Pitch(0),
+                    PatternAtom::Pitch(1),
+                ])]),
+                BeatEvent(vec![Event::Group(vec![PatternAtom::Pitch(2)])]),
+            ],
+            methods: vec![EventMethod::Multiply, EventMethod::Dot],
+        })]);
 
     assert_eq!(expected, result.unwrap());
 }

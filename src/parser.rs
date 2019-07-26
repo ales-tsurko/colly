@@ -56,5 +56,4 @@ impl CollyParser {
             CollyParser::error("Cannot get next pair.", &previous)
         })
     }
-
 }
