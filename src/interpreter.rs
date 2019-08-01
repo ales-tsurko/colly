@@ -137,113 +137,114 @@ impl Interpreter<types::Pattern> for ast::Pattern {
         self,
         context: &mut Context,
     ) -> InterpreterResult<types::Pattern> {
-        let mut events: Vec<types::Event> = Vec::new();
-        for (n, group) in self.0.into_iter().enumerate() {
-            events.append(
-                &mut BeatEventNode {
-                    level: 0,
-                    event_group: group,
-                    start_position: n,
-                }
-                .interpret(context)?,
-            );
-        }
+        // let mut events: Vec<types::Event> = Vec::new();
+        // for (n, group) in self.0.into_iter().enumerate() {
+        //     events.append(
+        //         &mut BeatEventNode {
+        //             level: 0,
+        //             event_group: group,
+        //             start_position: n,
+        //         }
+        //         .interpret(context)?,
+        //     );
+        // }
 
-        Ok(types::Pattern {
-            stream: events.into(),
-        })
-    }
-}
-
-//
-trait Node {
-    fn start_position(&self) -> usize;
-
-    fn level(&self) -> usize;
-
-    fn beat_divisor(&self) -> usize {
-        self.level().pow(2)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct BeatEventNode {
-    level: usize,
-    event_group: ast::BeatEvent,
-    start_position: usize,
-}
-
-impl Node for BeatEventNode {
-    fn level(&self) -> usize {
-        self.level
-    }
-
-    fn start_position(&self) -> usize {
-        self.start_position
-    }
-}
-
-impl Interpreter<Vec<types::Event>> for BeatEventNode {
-    fn interpret(
-        self,
-        context: &mut Context,
-    ) -> InterpreterResult<Vec<types::Event>> {
-        let mut events: Vec<types::Event> = Vec::new();
-        for (n, event) in self.clone().event_group.0.into_iter().enumerate() {
-            events.append(
-                &mut EventNode {
-                    level: self.level(),
-                    event,
-                    start_position: n,
-                }
-                .interpret(context)?,
-            );
-        }
-
-        Ok(events)
-    }
-}
-
-#[derive(Debug, Clone)]
-struct EventNode {
-    level: usize,
-    event: ast::Event,
-    start_position: usize,
-}
-
-impl Node for EventNode {
-    fn level(&self) -> usize {
-        self.level
-    }
-
-    fn start_position(&self) -> usize {
-        self.start_position
-    }
-}
-
-impl Interpreter<Vec<types::Event>> for EventNode {
-    fn interpret(
-        self,
-        context: &mut Context,
-    ) -> InterpreterResult<Vec<types::Event>> {
-        match self.clone().event {
-            ast::Event::Group(atoms) => self.interpret_group(atoms, context),
-            ast::Event::Chord(event_groups) => unimplemented!(),
-            ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
-            ast::Event::EventMethod(event_method) => unimplemented!(),
-        }
-    }
-}
-
-impl EventNode {
-    fn interpret_group(
-        self,
-        atoms: Vec<ast::PatternAtom>,
-        context: &Context,
-    ) -> InterpreterResult<Vec<types::Event>> {
+        // Ok(types::Pattern {
+        //     stream: events.into(),
+        // })
         unimplemented!()
     }
 }
+
+// //
+// trait Node {
+//     fn start_position(&self) -> usize;
+
+//     fn level(&self) -> usize;
+
+//     fn beat_divisor(&self) -> usize {
+//         self.level().pow(2)
+//     }
+// }
+
+// #[derive(Debug, Clone)]
+// struct BeatEventNode {
+//     level: usize,
+//     event_group: ast::BeatEvent,
+//     start_position: usize,
+// }
+
+// impl Node for BeatEventNode {
+//     fn level(&self) -> usize {
+//         self.level
+//     }
+
+//     fn start_position(&self) -> usize {
+//         self.start_position
+//     }
+// }
+
+// impl Interpreter<Vec<types::Event>> for BeatEventNode {
+//     fn interpret(
+//         self,
+//         context: &mut Context,
+//     ) -> InterpreterResult<Vec<types::Event>> {
+//         let mut events: Vec<types::Event> = Vec::new();
+//         for (n, event) in self.clone().event_group.0.into_iter().enumerate() {
+//             events.append(
+//                 &mut EventNode {
+//                     level: self.level(),
+//                     event,
+//                     start_position: n,
+//                 }
+//                 .interpret(context)?,
+//             );
+//         }
+
+//         Ok(events)
+//     }
+// }
+
+// #[derive(Debug, Clone)]
+// struct EventNode {
+//     level: usize,
+//     event: ast::Event,
+//     start_position: usize,
+// }
+
+// impl Node for EventNode {
+//     fn level(&self) -> usize {
+//         self.level
+//     }
+
+//     fn start_position(&self) -> usize {
+//         self.start_position
+//     }
+// }
+
+// impl Interpreter<Vec<types::Event>> for EventNode {
+//     fn interpret(
+//         self,
+//         context: &mut Context,
+//     ) -> InterpreterResult<Vec<types::Event>> {
+//         match self.clone().event {
+//             ast::Event::Group(atoms) => self.interpret_group(atoms, context),
+//             ast::Event::Chord(event_groups) => unimplemented!(),
+//             ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
+//             ast::Event::EventMethod(event_method) => unimplemented!(),
+//         }
+//     }
+// }
+
+// impl EventNode {
+//     fn interpret_group(
+//         self,
+//         atoms: Vec<ast::PatternAtom>,
+//         context: &Context,
+//     ) -> InterpreterResult<Vec<types::Event>> {
+//         unimplemented!()
+//     }
+// }
 
 #[derive(Debug, Fail)]
 pub enum InterpreterError {

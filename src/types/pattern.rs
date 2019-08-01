@@ -1,20 +1,26 @@
 use super::Value;
 use crate::clock::{Clock, CursorPosition};
 use crate::parser::ast;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Pattern {
-    pub stream: EventStream,
+    pub degree: EventStream<Degree>,
+    // pub scale: EventStream<Scale>,
+    pub root: EventStream<Root>,
+    // pub tuning: EventStream<Tuning>,
+    pub octave: EventStream<Octave>,
+    pub modulation: HashMap<String, EventStream<Modulation>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct EventStream {
-    events: Vec<Event>,
+pub struct EventStream<T: Clone + std::fmt::Debug + Default> {
+    events: Vec<Event<T>>,
     increment: usize,
 }
 
-impl From<Vec<Event>> for EventStream {
-    fn from(events: Vec<Event>) -> Self {
+impl<T: Clone + std::fmt::Debug + Default> From<Vec<Event<T>>> for EventStream<T> {
+    fn from(events: Vec<Event<T>>) -> Self {
         EventStream {
             events,
             increment: 0,
@@ -22,8 +28,8 @@ impl From<Vec<Event>> for EventStream {
     }
 }
 
-impl Iterator for EventStream {
-    type Item = Event;
+impl<T: Clone + std::fmt::Debug + Default> Iterator for EventStream<T> {
+    type Item = Event<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.increment < self.events.len() {
@@ -37,56 +43,56 @@ impl Iterator for EventStream {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Event {
-    etype: EventType,
-    state: EventState,
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Event<V: Clone + std::fmt::Debug + Default> {
+    value: V,
     position: CursorPosition,
 }
 
-impl Event {
+impl<T: Clone + std::fmt::Debug + Default> Event<T> {
     pub fn new(
-        etype: EventType,
-        state: EventState,
+        value: T,
         position: CursorPosition,
     ) -> Self {
         Event {
-            etype,
-            state,
+            value,
             position,
         }
     }
 }
 
-impl From<(EventType, EventState, CursorPosition)> for Event {
-    fn from(value: (EventType, EventState, CursorPosition)) -> Self {
+impl<T: Clone + std::fmt::Debug + Default> From<(T, CursorPosition)> for Event<T> {
+    fn from(value: (T, CursorPosition)) -> Self {
         Event {
-            etype: value.0,
-            state: value.1,
-            position: value.2,
+            value: value.0,
+            position: value.1,
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum EventState {
+#[derive(Clone, Debug, PartialEq)]
+pub enum Degree {
+    Note(u64, DegreeState),
+    Rest,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum DegreeState {
     On,
     Off,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum EventType {
-    Normal(f64),
-    Pause,
-    Input,
-}
-
-impl Default for Event {
+impl Default for Degree {
     fn default() -> Self {
-        Event {
-            etype: EventType::Pause,
-            state: EventState::Off,
-            position: CursorPosition::default(),
-        }
+        Degree::Note(0, DegreeState::On)
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Root(u8);
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Octave(u8);
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Modulation(f64);
