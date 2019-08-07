@@ -1,0 +1,167 @@
+[acoustic]
+name = "Acoustic"
+pitch_set = [0, 2, 4, 6, 7, 9, 10]
+
+[minor]
+name = "Natural Minor / Aeolian Mode"
+pitch_set = [0, 2, 3, 5, 7, 8, 10]
+
+[altered]
+name = "Altered"
+pitch_set = [0, 1, 3, 4, 6, 8, 10]
+
+[augmented]
+name = "Augmented"
+pitch_set = [0, 3, 4, 7, 8, 11]
+
+[bebop_dominant]
+name = "Bebop Dominant"
+pitch_set = [0, 2, 4, 5, 7, 9, 10, 11]
+
+[blues]
+name = "Blues"
+pitch_set = [0, 3, 5, 6, 7, 10]
+
+[chromatic]
+name = "Chromatic"
+pitch_set = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+[dorian]
+name = "Dorian Mode"
+pitch_set = [0, 2, 3, 5, 7, 9, 10]
+
+[double_harmonic]
+name = "Double Harmonic"
+pitch_set = [0, 1, 4, 5, 7, 8, 11]
+
+[enigmatic]
+name = "Enigmatic"
+pitch_set = [0, 1, 4, 6, 8, 10, 11]
+
+[flamenco]
+name = "Flamenco Mode"
+pitch_set = [0, 1, 4, 5, 7, 8, 11]
+
+[gypsy]
+name = "Gypsy"
+pitch_set = [0, 2, 3, 6, 7, 8, 10]
+
+[half_diminished]
+name = "Half Diminished"
+pitch_set = [0, 2, 3, 5, 6, 8, 10]
+
+[harmonic_major]
+name = "Harmonic Major"
+pitch_set = [0, 2, 4, 5, 7, 8, 11]
+
+[harmonic_minor]
+name = "Harmonic Minor"
+pitch_set = [0, 2, 3, 5, 7, 8, 11]
+
+[hirajoshi]
+name = "Hirajoshi"
+pitch_set = [0, 4, 6, 7, 11]
+
+[hungarian_gypsy]
+name = "Hungarian Gypsy"
+pitch_set = [0, 2, 3, 6, 7, 8, 11]
+
+[hungarian_minor]
+name = "Hungarian Minor"
+pitch_set = [0, 2, 3, 6, 7, 8, 11]
+
+[in]
+name = "In"
+pitch_set = [0, 1, 5, 7, 8]
+
+[insen]
+name = "Insen"
+pitch_set = [0, 1, 5, 7, 10]
+
+[major]
+name = "Major / Ionian Mode"
+pitch_set = [0, 2, 4, 5, 7, 9, 11]
+
+[iwato]
+name = "Iwato"
+pitch_set = [0, 1, 5, 6, 10]
+
+[locrian]
+name = "Locrian Mode"
+pitch_set = [0, 1, 3, 5, 6, 8, 10]
+
+[lydian_augmented]
+name = "Lydian Augmented"
+pitch_set = [0, 2, 4, 6, 8, 9, 11]
+
+[lydian]
+name = "Lydian Mode"
+pitch_set = [0, 2, 4, 6, 7, 9, 11]
+
+[major_bebop]
+name = "Major Bebop"
+pitch_set = [0, 2, 4, 5, 7, 8, 9, 11]
+
+[major_locrian]
+name = "Major Locrian"
+pitch_set = [0, 2, 4, 5, 6, 8, 10]
+
+[major_pentatonic]
+name = "Major Pentatonic"
+pitch_set = [0, 2, 4, 7, 9]
+
+[melodic_minor]
+name = "Melodic Minor (ascending)"
+pitch_set = [0, 2, 3, 5, 7, 9, 11]
+
+[minor_pentatonic]
+name = "Minor Pentatonic"
+pitch_set = [0, 3, 5, 7, 10]
+
+[mixolydian]
+name = "Mixolydian Mode / Adonai Malakh Mode"
+pitch_set = [0, 2, 4, 5, 7, 9, 10]
+
+[neapolitan_major]
+name = "Neapolitan Major"
+pitch_set = [0, 1, 3, 5, 7, 9, 11]
+
+[neapolitan_minor]
+name = "Neapolitan Minor"
+pitch_set = [0, 1, 3, 5, 7, 8, 11]
+
+[persian]
+name = "Persian"
+pitch_set = [0, 1, 4, 5, 6, 8, 11]
+
+[phrygian_dominant]
+name = "Phrygian Dominant"
+pitch_set = [0, 1, 4, 5, 7, 8, 10]
+
+[phrygian]
+name = "Phrygian Mode"
+pitch_set = [0, 1, 3, 5, 7, 8, 10]
+
+[prometheus]
+name = "Prometheus"
+pitch_set = [0, 2, 4, 6, 9, 10]
+
+[spectral]
+name = "Spectral / Harmonics"
+pitch_set = [0, 3, 4, 5, 7, 9]
+
+[tritone]
+name = "Tritone"
+pitch_set = [0, 1, 4, 6, 7, 10]
+
+[ukrainian_dorian]
+name = "Ukrainian Dorian"
+pitch_set = [0, 2, 3, 6, 7, 9, 10]
+
+[whole_tone]
+name = "Whole Tone"
+pitch_set = [0, 2, 4, 6, 8, 10]
+
+[yo]
+name = "Yo"
+pitch_set = [0, 3, 5, 7, 10]

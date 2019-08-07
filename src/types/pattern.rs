@@ -2,11 +2,12 @@ use super::Value;
 use crate::clock::{Clock, CursorPosition};
 use crate::parser::ast;
 use std::collections::HashMap;
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Pattern {
     pub degree: EventStream<Degree>,
-    // pub scale: EventStream<Scale>,
+    pub scale: EventStream<Scale>,
     pub root: EventStream<Root>,
     // pub tuning: EventStream<Tuning>,
     pub octave: EventStream<Octave>,
@@ -14,12 +15,12 @@ pub struct Pattern {
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct EventStream<T: Clone + std::fmt::Debug + Default> {
+pub struct EventStream<T: Clone + Debug + Default> {
     events: Vec<Event<T>>,
     increment: usize,
 }
 
-impl<T: Clone + std::fmt::Debug + Default> From<Vec<Event<T>>> for EventStream<T> {
+impl<T: Clone + Debug + Default> From<Vec<Event<T>>> for EventStream<T> {
     fn from(events: Vec<Event<T>>) -> Self {
         EventStream {
             events,
@@ -28,7 +29,7 @@ impl<T: Clone + std::fmt::Debug + Default> From<Vec<Event<T>>> for EventStream<T
     }
 }
 
-impl<T: Clone + std::fmt::Debug + Default> Iterator for EventStream<T> {
+impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
     type Item = Event<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -44,12 +45,12 @@ impl<T: Clone + std::fmt::Debug + Default> Iterator for EventStream<T> {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct Event<V: Clone + std::fmt::Debug + Default> {
+pub struct Event<V: Clone + Debug + Default> {
     value: V,
     position: CursorPosition,
 }
 
-impl<T: Clone + std::fmt::Debug + Default> Event<T> {
+impl<T: Clone + Debug + Default> Event<T> {
     pub fn new(
         value: T,
         position: CursorPosition,
@@ -61,7 +62,7 @@ impl<T: Clone + std::fmt::Debug + Default> Event<T> {
     }
 }
 
-impl<T: Clone + std::fmt::Debug + Default> From<(T, CursorPosition)> for Event<T> {
+impl<T: Clone + Debug + Default> From<(T, CursorPosition)> for Event<T> {
     fn from(value: (T, CursorPosition)) -> Self {
         Event {
             value: value.0,
@@ -96,3 +97,27 @@ pub struct Octave(u8);
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Modulation(f64);
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Scale {
+    pub name: String,
+    pub pitch_set: Vec<u8>,
+}
+
+impl Scale {
+    pub fn new(name: &str, pitch_set: &Vec<u8>) -> Self {
+        Scale {
+            name: name.to_string(),
+            pitch_set: pitch_set.clone(),
+        }
+    }
+}
+
+impl Default for Scale {
+    fn default() -> Self {
+        Scale {
+            name: "Chromatic".to_string(),
+            pitch_set: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+        }
+    }
+}
