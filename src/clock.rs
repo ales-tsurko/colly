@@ -19,6 +19,9 @@ impl Clock {
     pub fn tempo(&self) -> Bpm {
         self.tempo
     }
+
+    //TODO:
+    // pub fn tick_interval(&self)
 }
 
 impl Default for Clock {
