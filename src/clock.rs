@@ -1,5 +1,7 @@
 use std::ops;
 
+const DEFAULT_RESOLUTION: u64 = 1920;
+
 #[derive(Debug, Clone)]
 pub struct Clock {
     tempo: Bpm,
@@ -28,13 +30,13 @@ impl Clock {
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock::new(Bpm::default(), 1920)
+        Clock::new(Bpm::default(), DEFAULT_RESOLUTION)
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Cursor {
-    position: CursorPosition,
+    pub position: CursorPosition,
     resolution: u64,
 }
 
@@ -43,6 +45,19 @@ impl Cursor {
         Cursor {
             position: CursorPosition::default(),
             resolution,
+        }
+    }
+
+    pub fn get_resolution(&self) -> u64 {
+        self.resolution
+    }
+}
+
+impl Default for Cursor {
+    fn default() -> Cursor {
+        Cursor {
+            position: CursorPosition::default(),
+            resolution: DEFAULT_RESOLUTION,
         }
     }
 }
