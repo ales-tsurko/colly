@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::clock::CursorPosition;
+use crate::clock::{Clock, CursorPosition};
 
 use serde_derive::Deserialize;
 
@@ -11,19 +11,18 @@ pub struct Pattern {
     root: EventStream<Root>,
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
+    start_position: CursorPosition,
+    // clock: &'a Clock,
 }
 
 impl Pattern {
-    pub fn events_at_position(
-        &mut self,
-        position: CursorPosition,
-    ) -> Vec<Event<Value>> {
-        self.filter(|event| event.position == position).collect()
+    pub fn set_start_position(&mut self, position: CursorPosition) {
+        self.start_position = position;
     }
 }
 
 impl Iterator for Pattern {
-    type Item = Event<Value>;
+    type Item = Event<Vec<Value>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         unimplemented!()

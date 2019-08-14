@@ -1,3 +1,5 @@
+use std::ops;
+
 #[derive(Debug, Clone)]
 pub struct Clock {
     tempo: Bpm,
@@ -59,7 +61,6 @@ impl Iterator for Cursor {
         self.position.tick = 0;
         Some(self.position)
     }
-
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -71,15 +72,28 @@ pub struct CursorPosition {
 impl CursorPosition {
     pub fn from_relative_position(position: f64, resolution: u64) -> Self {
         let beat = position as u64;
-        let tick = ((position - (beat as f64)) * (resolution as f64)).round() as u64;
-        CursorPosition {
-            beat,
-            tick,
-        }
+        let tick = (position.fract() * (resolution as f64)).round() as u64;
+        CursorPosition { beat, tick }
     }
 
     pub fn as_relative_position(&self, resolution: u64) -> f64 {
         (self.beat as f64) + ((self.tick as f64) / (resolution as f64))
+    }
+}
+
+impl std::ops::Add<CursorPosition> for Cursor {
+    type Output = CursorPosition;
+
+    fn add(self, rhs: CursorPosition) -> Self::Output {
+        let mut beat = self.position.beat + rhs.beat;
+        let mut tick = self.position.tick + rhs.tick;
+        if tick >= self.resolution {
+            let beat_offset = tick / self.resolution;
+            beat += beat_offset;
+            tick -= beat_offset * self.resolution + 1;
+        }
+
+        CursorPosition { beat, tick }
     }
 }
 
@@ -97,7 +111,6 @@ impl Default for Bpm {
         Bpm(117.0)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -129,13 +142,25 @@ mod tests {
     #[test]
     fn increment_cursor() {
         let mut cursor = Cursor::new(24);
-        let expected = CursorPosition {
-            beat: 1,
-            tick: 2,
-        };
+        let expected = CursorPosition { beat: 1, tick: 2 };
 
         assert_eq!(Some(expected), cursor.nth(25));
+    }
 
+    #[test]
+    fn cursor_offset() {
+        let mut cursor = Cursor::new(24);
+        cursor.nth(3);
+        let offset = CursorPosition {
+            beat: 10,
+            // such tick value shouldn't be possible when
+            // resolution is 24, but for battle-like circumstances...
+            tick: 73,
+        };
+        let result = cursor + offset;
+
+        let expected = CursorPosition { beat: 13, tick: 4 };
+
+        assert_eq!(expected, result);
     }
 }
-
