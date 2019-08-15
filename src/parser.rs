@@ -11,7 +11,7 @@ pub type ParseResult<T> = Result<T, Error<Rule>>;
 pub struct CollyParser;
 
 impl CollyParser {
-    pub fn error<T>(message: &str, pair: &Pair<T>) -> Error<T>
+    pub fn error<T>(message: &str, pair: &Pair<'_, T>) -> Error<T>
     where
         T: RuleType,
     {
@@ -21,14 +21,14 @@ impl CollyParser {
         Error::new_from_span(variant, pair.as_span())
     }
 
-    pub fn rule_error<T>(pair: &Pair<Rule>) -> ParseResult<T> {
+    pub fn rule_error<T>(pair: &Pair<'_, Rule>) -> ParseResult<T> {
         Err(CollyParser::error(
             &format!("Error parsing {:?}", pair.as_rule()),
             &pair,
         ))
     }
 
-    pub fn assert_rule(expected: Rule, pair: &Pair<Rule>) -> ParseResult<()> {
+    pub fn assert_rule(expected: Rule, pair: &Pair<'_, Rule>) -> ParseResult<()> {
         if pair.as_rule() == expected {
             Ok(())
         } else {
@@ -36,7 +36,7 @@ impl CollyParser {
         }
     }
 
-    pub fn first_inner_for_pair(pair: Pair<Rule>) -> ParseResult<Pair<Rule>> {
+    pub fn first_inner_for_pair(pair: Pair<'_, Rule>) -> ParseResult<Pair<'_, Rule>> {
         let span = pair.as_span();
         pair.into_inner().next().ok_or_else(|| {
             Error::new_from_span(

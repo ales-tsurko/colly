@@ -14,20 +14,20 @@ pub trait Guide {
 }
 
 pub trait FunctionClone {
-    fn clone_box(&self) -> Box<Function<Item = Value>>;
+    fn clone_box(&self) -> Box<dyn Function<Item = Value>>;
 }
 
-impl<'a, T> FunctionClone for T
+impl<T> FunctionClone for T
 where
     T: 'static + Function<Item = Value> + Clone,
 {
-    fn clone_box(&self) -> Box<Function<Item = Value>> {
+    fn clone_box(&self) -> Box<dyn Function<Item = Value>> {
         Box::new(self.clone())
     }
 }
 
-impl Clone for Box<Function<Item = Value>> {
-    fn clone(&self) -> Box<Function<Item = Value>> {
+impl Clone for Box<dyn Function<Item = Value>> {
+    fn clone(&self) -> Box<dyn Function<Item = Value>> {
         self.clone_box()
     }
 }

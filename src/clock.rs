@@ -96,6 +96,7 @@ impl CursorPosition {
     }
 }
 
+#[allow(clippy::suspicious_arithmetic_impl)]
 impl std::ops::Add<CursorPosition> for Cursor {
     type Output = CursorPosition;
 

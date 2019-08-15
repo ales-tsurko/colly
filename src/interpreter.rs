@@ -10,14 +10,14 @@ use std::rc::Rc;
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
 pub trait Interpreter<V> {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<V>;
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<V>;
 }
 
 pub struct Context<'a> {
     parent: &'a Option<Context<'a>>,
     mixer: Mixer,
     variables: VariablesTable,
-    functions: HashMap<Identifier, Box<Function<Item = Value>>>,
+    functions: HashMap<Identifier, Box<dyn Function<Item = Value>>>,
 }
 
 #[derive(Debug, Default)]
@@ -44,7 +44,7 @@ impl<'a> Default for Context<'a> {
 }
 
 impl Interpreter<()> for ast::Ast {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<()> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<()> {
         for statement in self.0.into_iter() {
             statement.interpret(context)?;
         }
@@ -53,7 +53,7 @@ impl Interpreter<()> for ast::Ast {
 }
 
 impl Interpreter<()> for ast::Statement {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<()> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<()> {
         match self {
             ast::Statement::SuperExpression(value) => {
                 let _ = value.interpret(context)?;
@@ -65,7 +65,7 @@ impl Interpreter<()> for ast::Statement {
 }
 
 impl Interpreter<Value> for ast::SuperExpression {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Value> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<Value> {
         match self {
             ast::SuperExpression::Expression(value) => value.interpret(context),
             ast::SuperExpression::Method(value) => value.interpret(context),
@@ -74,7 +74,7 @@ impl Interpreter<Value> for ast::SuperExpression {
 }
 
 impl Interpreter<Value> for ast::Expression {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Value> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<Value> {
         use ast::Expression;
         match self {
             Expression::Boolean(value) => Ok(Value::from(value)),
@@ -108,7 +108,7 @@ impl ast::Expression {
     fn interpret_slot(
         track_n: usize,
         slot_n: usize,
-        context: &mut Context,
+        context: &mut Context<'_>,
     ) -> InterpreterResult<Value> {
         match Rc::get_mut(&mut context.mixer.track(track_n)) {
             Some(track) => Ok(Value::from(track.slot(slot_n))),
@@ -121,13 +121,13 @@ impl ast::Expression {
 }
 
 impl Interpreter<Value> for ast::MethodCall {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<Value> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<Value> {
         unimplemented!()
     }
 }
 
 impl Interpreter<()> for ast::Assignment {
-    fn interpret(self, context: &mut Context) -> InterpreterResult<()> {
+    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<()> {
         unimplemented!()
     }
 }
@@ -135,7 +135,7 @@ impl Interpreter<()> for ast::Assignment {
 impl Interpreter<types::Pattern> for ast::Pattern {
     fn interpret(
         self,
-        context: &mut Context,
+        context: &mut Context<'_>,
     ) -> InterpreterResult<types::Pattern> {
         // let mut events: Vec<types::Event> = Vec::new();
         // for (n, group) in self.0.into_iter().enumerate() {
@@ -187,7 +187,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
 // impl Interpreter<Vec<types::Event>> for BeatEventNode {
 //     fn interpret(
 //         self,
-//         context: &mut Context,
+//         context: &mut Context<'_>,
 //     ) -> InterpreterResult<Vec<types::Event>> {
 //         let mut events: Vec<types::Event> = Vec::new();
 //         for (n, event) in self.clone().event_group.0.into_iter().enumerate() {
@@ -225,7 +225,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
 // impl Interpreter<Vec<types::Event>> for EventNode {
 //     fn interpret(
 //         self,
-//         context: &mut Context,
+//         context: &mut Context<'_>,
 //     ) -> InterpreterResult<Vec<types::Event>> {
 //         match self.clone().event {
 //             ast::Event::Group(atoms) => self.interpret_group(atoms, context),

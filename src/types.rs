@@ -19,7 +19,7 @@ pub enum Value {
     String(String),
     Properties(Properties),
     Array(Vec<Value>),
-    Function(Box<Function<Item = Value>>),
+    Function(Box<dyn Function<Item = Value>>),
     Pattern(Pattern),
     Mixer, // we'll get mixer from context
     Track(Rc<Track>),
@@ -45,7 +45,7 @@ pub enum TypeId {
 }
 
 impl fmt::Display for TypeId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use TypeId::*;
         match self {
             Identifier => write!(f, "<Identifier>"),
@@ -84,7 +84,7 @@ impl_from_for_value_wrapper!(Vec<Value>, Array);
 impl_from_for_value_wrapper!(Pattern, Pattern);
 impl_from_for_value_wrapper!(Rc<Track>, Track);
 impl_from_for_value_wrapper!(Rc<Slot>, Slot);
-impl_from_for_value_wrapper!(Box<Function<Item = Value>>, Function);
+impl_from_for_value_wrapper!(Box<dyn Function<Item = Value>>, Function);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub struct Identifier(pub String);
