@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::Debug;
 
 use crate::clock::{Cursor, CursorPosition};
@@ -15,8 +16,11 @@ pub struct Pattern {
 }
 
 impl Pattern {
-    pub fn new(start_position: CursorPosition)-> Self {
-        Self { start_position, ..Default::default() }
+    pub fn new(start_position: CursorPosition) -> Self {
+        Self {
+            start_position,
+            ..Default::default()
+        }
     }
 }
 
@@ -119,11 +123,11 @@ pub struct Modulation {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub struct Scale {
     pub name: String,
-    pub pitch_set: Vec<u8>,
+    pub pitch_set: HashSet<u8>,
 }
 
 impl Scale {
-    pub fn new(name: &str, pitch_set: &Vec<u8>) -> Self {
+    pub fn new(name: &str, pitch_set: &HashSet<u8>) -> Self {
         Scale {
             name: name.to_string(),
             pitch_set: pitch_set.clone(),
@@ -133,9 +137,13 @@ impl Scale {
 
 impl Default for Scale {
     fn default() -> Self {
+        let mut set: HashSet<u8> = HashSet::new();
+        for n in 0..11u8 {
+            set.insert(n);
+        }
         Scale {
             name: "Chromatic".to_string(),
-            pitch_set: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            pitch_set: set,
         }
     }
 }
