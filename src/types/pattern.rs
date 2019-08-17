@@ -25,9 +25,8 @@ impl Iterator for Pattern {
 
     fn next(&mut self) -> Option<Self::Item> {
         //TODO:
-        //Check if there are events at the self.cursor.next() position
         //Calculate pitch
-        //Update position with self.start_position for returning events
+        //Don't forget to offset position with self.start_position for returning events
         None
     }
 }
@@ -158,7 +157,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn event_stream_iterator() {
+    fn event_stream() {
         let mut stream = EventStream::new(
             vec![
                 (12, (0, 0).into()).into(),
