@@ -73,7 +73,7 @@ impl Iterator for Cursor {
             return Some(self.position);
         }
 
-        self.position.beat = self.position.beat.wrapping_add(1);
+        self.position.beat += 1;
         self.position.tick = 0;
 
         Some(self.position)
