@@ -28,7 +28,10 @@ impl CollyParser {
         ))
     }
 
-    pub fn assert_rule(expected: Rule, pair: &Pair<'_, Rule>) -> ParseResult<()> {
+    pub fn assert_rule(
+        expected: Rule,
+        pair: &Pair<'_, Rule>,
+    ) -> ParseResult<()> {
         if pair.as_rule() == expected {
             Ok(())
         } else {
@@ -36,7 +39,9 @@ impl CollyParser {
         }
     }
 
-    pub fn first_inner_for_pair(pair: Pair<'_, Rule>) -> ParseResult<Pair<'_, Rule>> {
+    pub fn first_inner_for_pair(
+        pair: Pair<'_, Rule>,
+    ) -> ParseResult<Pair<'_, Rule>> {
         let span = pair.as_span();
         pair.into_inner().next().ok_or_else(|| {
             Error::new_from_span(

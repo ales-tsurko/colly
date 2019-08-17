@@ -1,5 +1,5 @@
-use std::ops;
 use std::cmp::{Ord, Ordering};
+use std::ops;
 
 const DEFAULT_RESOLUTION: u64 = 1920;
 
@@ -73,8 +73,9 @@ impl Iterator for Cursor {
             return Some(self.position);
         }
 
-        self.position.beat += 1;
+        self.position.beat = self.position.beat.wrapping_add(1);
         self.position.tick = 0;
+
         Some(self.position)
     }
 }
