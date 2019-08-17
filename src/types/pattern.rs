@@ -11,18 +11,12 @@ pub struct Pattern {
     root: EventStream<Root>,
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
-    cursor: Cursor,
     start_position: CursorPosition,
 }
 
 impl Pattern {
-    pub fn new(cursor: Cursor) -> Self {
-        let mut pattern = Pattern::default();
-        pattern.start_position = cursor.position;
-        pattern.cursor = cursor;
-        pattern.cursor.position = CursorPosition::default();
-
-        pattern
+    pub fn new(start_position: CursorPosition)-> Self {
+        Self { start_position, ..Default::default() }
     }
 }
 
@@ -34,37 +28,41 @@ impl Iterator for Pattern {
         //Check if there are events at the self.cursor.next() position
         //Calculate pitch
         //Update position with self.start_position for returning events
-        unimplemented!()
+        None
     }
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EventStream<T: Clone + Debug + Default> {
     events: Vec<Event<T>>,
-    increment: usize,
+    cursor: Cursor,
 }
 
-impl<T: Clone + Debug + Default> From<Vec<Event<T>>> for EventStream<T> {
-    fn from(events: Vec<Event<T>>) -> Self {
-        EventStream {
-            events,
-            increment: 0,
-        }
+impl<T: Clone + Debug + Default> EventStream<T> {
+    pub fn new(events: Vec<Event<T>>, cursor: Cursor) -> Self {
+        Self { events, cursor }
     }
 }
 
 impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
-    type Item = Event<T>;
+    type Item = Event<Vec<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.increment < self.events.len() {
-            let event = self.events[self.increment].clone();
-            self.increment += 1;
-            return Some(event);
+        if self.events.is_empty() {
+            return None;
         }
 
-        self.increment = 0;
-        None
+        let position = self.cursor.position;
+        let mut values: Vec<T> = Vec::new();
+        while position == self.events[0].position {
+            values.push(self.events.remove(0).value);
+            if self.events.is_empty() {
+                break;
+            }
+        }
+
+        self.cursor.next().unwrap(); // Cursor::next is always Some
+        Some((values, position).into())
     }
 }
 
@@ -152,5 +150,36 @@ pub enum Value {
 impl Default for Value {
     fn default() -> Self {
         Value::Pitch(60)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn event_stream_iterator() {
+        let mut stream = EventStream::new(
+            vec![
+                (12, (0, 0).into()).into(),
+                (15, (0, 0).into()).into(),
+                (17, (1, 0).into()).into(),
+                (21, (1, 0).into()).into(),
+                (27, (2, 1).into()).into(),
+            ],
+            Cursor::new(2),
+        );
+        let mut expected: Vec<Event<Vec<u64>>> = vec![
+            (vec![12, 15], (0, 0).into()).into(),
+            (vec![], (0, 1).into()).into(),
+            (vec![17, 21], (1, 0).into()).into(),
+            (vec![], (1, 1).into()).into(),
+            (vec![], (2, 0).into()).into(),
+            (vec![27], (2, 1).into()).into(),
+        ];
+
+        for _ in 0..expected.len() {
+            assert_eq!(Some(expected.remove(0)), stream.next());
+        }
     }
 }

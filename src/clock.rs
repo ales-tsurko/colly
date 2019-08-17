@@ -96,6 +96,15 @@ impl CursorPosition {
     }
 }
 
+impl From<(u64, u64)> for CursorPosition {
+    fn from(value: (u64, u64)) -> Self {
+        CursorPosition {
+            beat: value.0,
+            tick: value.1,
+        }
+    }
+}
+
 #[allow(clippy::suspicious_arithmetic_impl)]
 impl std::ops::Add<CursorPosition> for Cursor {
     type Output = CursorPosition;
