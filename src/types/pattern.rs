@@ -43,7 +43,18 @@ pub struct EventStream<T: Clone + Debug + Default> {
 
 impl<T: Clone + Debug + Default> EventStream<T> {
     pub fn new(events: Vec<Event<T>>, cursor: Cursor) -> Self {
-        Self { events, cursor }
+        let mut result = Self { events, cursor };
+        result.sort();
+        result
+    }
+
+    pub fn add_event(&mut self, event: Event<T>) {
+        self.events.push(event);
+        self.sort();
+    }
+
+    fn sort(&mut self) {
+        self.events.sort_by(|a, b| a.position.cmp(&b.position));
     }
 }
 
@@ -168,18 +179,18 @@ mod tests {
     fn event_stream() {
         let mut stream = EventStream::new(
             vec![
+                (27, (2, 1).into()).into(),
                 (12, (0, 0).into()).into(),
+                (21, (1, 0).into()).into(),
                 (15, (0, 0).into()).into(),
                 (17, (1, 0).into()).into(),
-                (21, (1, 0).into()).into(),
-                (27, (2, 1).into()).into(),
             ],
             Cursor::new(2),
         );
         let mut expected: Vec<Event<Vec<u64>>> = vec![
             (vec![12, 15], (0, 0).into()).into(),
             (vec![], (0, 1).into()).into(),
-            (vec![17, 21], (1, 0).into()).into(),
+            (vec![21, 17], (1, 0).into()).into(),
             (vec![], (1, 1).into()).into(),
             (vec![], (2, 0).into()).into(),
             (vec![27], (2, 1).into()).into(),

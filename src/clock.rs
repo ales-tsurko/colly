@@ -1,4 +1,5 @@
 use std::ops;
+use std::cmp::{Ord, Ordering};
 
 const DEFAULT_RESOLUTION: u64 = 1920;
 
@@ -78,7 +79,7 @@ impl Iterator for Cursor {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CursorPosition {
     beat: u64,
     tick: u64,
@@ -105,8 +106,24 @@ impl From<(u64, u64)> for CursorPosition {
     }
 }
 
+impl Ord for CursorPosition {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let beat_cmp = self.beat.cmp(&other.beat);
+        match beat_cmp {
+            Ordering::Equal => self.tick.cmp(&other.tick),
+            _ => beat_cmp,
+        }
+    }
+}
+
+impl PartialOrd for CursorPosition {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 #[allow(clippy::suspicious_arithmetic_impl)]
-impl std::ops::Add<CursorPosition> for Cursor {
+impl ops::Add<CursorPosition> for Cursor {
     type Output = CursorPosition;
 
     fn add(self, rhs: CursorPosition) -> Self::Output {
