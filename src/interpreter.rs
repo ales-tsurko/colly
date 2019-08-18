@@ -2,7 +2,7 @@
 mod tests;
 
 use crate::clock::Clock;
-use crate::parser::ast;
+use crate::ast;
 use crate::types::{self, Function, Identifier, Mixer, Value};
 use std::collections::HashMap;
 use std::rc::Rc;

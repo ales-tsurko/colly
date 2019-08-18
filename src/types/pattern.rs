@@ -5,6 +5,9 @@ use crate::clock::{Cursor, CursorPosition};
 
 use serde_derive::Deserialize;
 
+/// Pattern combines several [EventStream](struct.EventStream.html)s
+/// and produces [Value](enum.Value.html)s for current [Cursor](../clock/struct.Cursor.html)
+/// position on each Pattern::next call.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Pattern {
     degree: EventStream<Degree>,
@@ -41,6 +44,8 @@ impl Iterator for Pattern {
     }
 }
 
+/// EventStream is an Iterator which returns values at a specific [Cursor](../clock/struct.Cursor.html)
+/// position.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EventStream<T: Clone + Debug + Default> {
     events: Vec<Event<T>>,
@@ -64,15 +69,18 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         self.events.sort_by(|a, b| a.position.cmp(&b.position));
     }
 
+    /// Add (schedule) [Event](struct.Event.html) to the stream.
     pub fn add_event(&mut self, event: Event<T>) {
         self.events.push(event);
         self.sort();
     }
 
+    /// Get [CursorPosition](../clock/struct.CursorPosition.html) of the last event.
     pub fn last_position(&self) -> Option<CursorPosition> {
         self.events.last().map(|e| e.position)
     }
 
+    /// Reset position to beginning.
     pub fn reset(&mut self) {
         self.increment = 0;
         self.cursor.position = (0, 0).into();
@@ -131,7 +139,7 @@ impl<T: Clone + Debug + Default> From<(T, CursorPosition)> for Event<T> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Degree {
+pub(crate) struct Degree {
     value: u64,
     alteration: i64,
     state: DegreeState,
@@ -148,25 +156,25 @@ impl Default for Degree {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum DegreeState {
+pub(crate) enum DegreeState {
     On,
     Off,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub struct Root(u8);
+pub(crate) struct Root(u8);
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub struct Octave(u8);
+pub(crate) struct Octave(u8);
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub struct Modulation {
+pub(crate) struct Modulation {
     name: String,
     value: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
-pub struct Scale {
+pub(crate) struct Scale {
     pub name: String,
     pub pitch_set: HashSet<u8>,
 }
@@ -196,7 +204,7 @@ impl Default for Scale {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Pitch(u64),
-    Modulation(Modulation),
+    Modulation(String, f64),
 }
 
 impl Default for Value {

@@ -1,5 +1,5 @@
 use super::*;
-use crate::parser::ast::tests;
+use crate::ast::tests;
 use crate::parser::Rule;
 
 #[test]

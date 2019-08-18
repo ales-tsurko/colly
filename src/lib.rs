@@ -20,4 +20,5 @@ extern crate failure;
 pub mod clock;
 pub mod interpreter;
 pub mod parser;
+pub mod ast;
 pub mod types;

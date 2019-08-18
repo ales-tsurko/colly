@@ -6,6 +6,7 @@
 
 #[cfg(test)]
 pub(crate) mod tests;
+
 use crate::parser::Rule;
 use crate::parser::{CollyParser, ParseResult};
 use crate::types::Identifier;

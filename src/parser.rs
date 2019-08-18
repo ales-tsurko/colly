@@ -2,12 +2,10 @@ use pest::error::{Error, ErrorVariant};
 use pest::iterators::{Pair, Pairs};
 use pest::RuleType;
 
-pub mod ast;
-
 pub type ParseResult<T> = Result<T, Error<Rule>>;
 
 #[derive(Parser)]
-#[grammar = "parser/colly.pest"]
+#[grammar = "colly.pest"]
 pub struct CollyParser;
 
 impl CollyParser {
