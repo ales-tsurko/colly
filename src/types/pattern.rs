@@ -17,10 +17,16 @@ pub struct Pattern {
 
 impl Pattern {
     pub fn new(start_position: CursorPosition) -> Self {
-        Self {
+        let mut result = Self {
             start_position,
             ..Default::default()
-        }
+        };
+
+        result.scale.is_loop = true;
+        result.root.is_loop = true;
+        result.octave.is_loop = true;
+
+        result
     }
 }
 
@@ -67,10 +73,14 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         self.events.last().map(|e| e.position)
     }
 
+    pub fn reset(&mut self) {
+        self.increment = 0;
+        self.cursor.position = (0, 0).into();
+    }
+
     fn check_loop(&mut self) {
         if self.is_loop && self.increment >= self.events.len() {
-            self.increment = 0;
-            self.cursor.position = (0, 0).into();
+            self.reset();
         }
     }
 }
@@ -249,8 +259,11 @@ mod tests {
             (vec![27], (2, 1).into()).into(),
         ];
 
-        for n in 0..expected.len()*3 {
-            assert_eq!(Some(expected[n%expected.len()].clone()), stream.next());
+        for n in 0..expected.len() * 3 {
+            assert_eq!(
+                Some(expected[n % expected.len()].clone()),
+                stream.next()
+            );
         }
     }
 }
