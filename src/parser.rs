@@ -1,6 +1,7 @@
 use pest::error::{Error, ErrorVariant};
 use pest::iterators::{Pair, Pairs};
-use pest::RuleType;
+use pest::{Parser, RuleType};
+use std::convert::TryFrom;
 
 pub type ParseResult<T> = Result<T, Error<Rule>>;
 
@@ -58,5 +59,16 @@ impl CollyParser {
         pairs.next().ok_or_else(|| {
             CollyParser::error("Cannot get next pair.", &previous)
         })
+    }
+
+    pub fn parse_source_for_rule<'a, T>(
+        source: &'a str,
+        rule: Rule,
+    ) -> Result<T, T::Error>
+    where
+        T: TryFrom<Pair<'a, Rule>>,
+    {
+        let pair = CollyParser::parse(rule, source).unwrap().peek().unwrap();
+        T::try_from(pair)
     }
 }

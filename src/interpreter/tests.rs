@@ -1,13 +1,13 @@
 use super::*;
-use crate::ast::tests;
-use crate::parser::Rule;
+use crate::parser::{CollyParser, Rule};
+use pest::Parser;
 
 #[test]
 fn interpret_pattern_complex() {
     let mut context = Context::default();
     // let result: ast::Pattern = tests::parse_source_for_rule("|01 2|", Rule::Pattern).unwrap();
 
-    let result: ast::Pattern = tests::parse_source_for_rule(
+    let result: ast::Pattern = CollyParser::parse_source_for_rule(
         "| 01*:23 * *01[0 1 23]* (012 34)* 01(23 4)5* 1: |",
         Rule::Pattern,
     )
@@ -24,7 +24,7 @@ fn interpret_pattern_simple() {
 
     let mut context = Context::default();
     let ast_result: ast::Pattern =
-        tests::parse_source_for_rule("| 0 0 0 |", Rule::Pattern).unwrap();
+        CollyParser::parse_source_for_rule("| 0 0 0 |", Rule::Pattern).unwrap();
     let result: Pattern = ast_result.interpret(&mut context).unwrap();
     // let expected = Pattern {
     //     stream: EventStream::from(vec![
