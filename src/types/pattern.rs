@@ -38,14 +38,24 @@ impl Iterator for Pattern {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EventStream<T: Clone + Debug + Default> {
     events: Vec<Event<T>>,
+    increment: usize,
     cursor: Cursor,
+    pub is_loop: bool,
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
     pub fn new(events: Vec<Event<T>>, cursor: Cursor) -> Self {
-        let mut result = Self { events, cursor };
+        let mut result = Self {
+            events,
+            cursor,
+            ..Default::default()
+        };
         result.sort();
         result
+    }
+
+    fn sort(&mut self) {
+        self.events.sort_by(|a, b| a.position.cmp(&b.position));
     }
 
     pub fn add_event(&mut self, event: Event<T>) {
@@ -53,8 +63,12 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         self.sort();
     }
 
-    fn sort(&mut self) {
-        self.events.sort_by(|a, b| a.position.cmp(&b.position));
+    pub fn last_position(&self) -> Option<CursorPosition> {
+        self.events.last().map(|e| e.position)
+    }
+
+    fn update_increment(&mut self) {
+        self.increment = (self.increment + 1) % self.events.len();
     }
 }
 
@@ -62,21 +76,23 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
     type Item = Event<Vec<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.events.is_empty() {
+        if self.events.is_empty()
+            || (self.increment >= self.events.len() && !self.is_loop)
+        {
             return None;
         }
 
-        let position = self.cursor.position;
         let mut values: Vec<T> = Vec::new();
-        while position == self.events[0].position {
-            values.push(self.events.remove(0).value);
-            if self.events.is_empty() {
-                break;
-            }
+        while self.increment < self.events.len()
+            && self.cursor.position == self.events[self.increment].position
+        {
+            values.push(self.events[self.increment].value.clone());
+            self.update_increment();
         }
 
+        let result: Self::Item = (values, self.cursor.position).into();
         self.cursor.next().unwrap(); // Cursor::next is always Some
-        Some((values, position).into())
+        Some(result)
     }
 }
 
@@ -102,21 +118,26 @@ impl<T: Clone + Debug + Default> From<(T, CursorPosition)> for Event<T> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Degree {
-    Note(u64, DegreeState),
-    Rest,
+pub struct Degree {
+    value: u64,
+    alteration: i64,
+    state: DegreeState,
+}
+
+impl Default for Degree {
+    fn default() -> Self {
+        Degree {
+            value: 0,
+            alteration: 0,
+            state: DegreeState::On,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DegreeState {
     On,
     Off,
-}
-
-impl Default for Degree {
-    fn default() -> Self {
-        Degree::Note(0, DegreeState::On)
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -187,6 +208,7 @@ mod tests {
             ],
             Cursor::new(2),
         );
+
         let mut expected: Vec<Event<Vec<u64>>> = vec![
             (vec![12, 15], (0, 0).into()).into(),
             (vec![], (0, 1).into()).into(),
