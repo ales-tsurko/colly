@@ -67,8 +67,11 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         self.events.last().map(|e| e.position)
     }
 
-    fn update_increment(&mut self) {
-        self.increment = (self.increment + 1) % self.events.len();
+    fn check_loop(&mut self) {
+        if self.is_loop && self.increment >= self.events.len() {
+            self.increment = 0;
+            self.cursor.position = (0, 0).into();
+        }
     }
 }
 
@@ -82,16 +85,16 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
             return None;
         }
 
-        let mut values: Vec<T> = Vec::new();
+        let mut result: Self::Item = (vec![], self.cursor.position).into();
         while self.increment < self.events.len()
             && self.cursor.position == self.events[self.increment].position
         {
-            values.push(self.events[self.increment].value.clone());
-            self.update_increment();
+            result.value.push(self.events[self.increment].value.clone());
+            self.increment += 1;
         }
 
-        let result: Self::Item = (values, self.cursor.position).into();
         self.cursor.next().unwrap(); // Cursor::next is always Some
+        self.check_loop();
         Some(result)
     }
 }
@@ -220,6 +223,34 @@ mod tests {
 
         for _ in 0..expected.len() {
             assert_eq!(Some(expected.remove(0)), stream.next());
+        }
+
+        assert_eq!(None, stream.next());
+    }
+
+    #[test]
+    fn stream_loop() {
+        let mut stream = EventStream::new(
+            vec![
+                (27, (2, 1).into()).into(),
+                (21, (1, 0).into()).into(),
+                (15, (0, 0).into()).into(),
+            ],
+            Cursor::new(2),
+        );
+        stream.is_loop = true;
+
+        let expected: Vec<Event<Vec<u64>>> = vec![
+            (vec![15], (0, 0).into()).into(),
+            (vec![], (0, 1).into()).into(),
+            (vec![21], (1, 0).into()).into(),
+            (vec![], (1, 1).into()).into(),
+            (vec![], (2, 0).into()).into(),
+            (vec![27], (2, 1).into()).into(),
+        ];
+
+        for n in 0..expected.len()*3 {
+            assert_eq!(Some(expected[n%expected.len()].clone()), stream.next());
         }
     }
 }
