@@ -15,6 +15,7 @@ pub struct Pattern {
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
     start_position: CursorPosition,
+    cursor: Cursor,
     is_loop: bool,
 }
 
@@ -27,10 +28,16 @@ macro_rules! impl_schedule_method {
 }
 
 impl Pattern {
-    pub fn new(start_position: CursorPosition) -> Self {
+    pub fn new(start_position: CursorPosition, cursor: &Cursor) -> Self {
         let mut result = Self {
+            degree: EventStream::new(vec![], cursor),
+            scale: EventStream::new(vec![], cursor),
+            root: EventStream::new(vec![], cursor),
+            octave: EventStream::new(vec![], cursor),
+            modulation: EventStream::new(vec![], cursor),
             start_position,
-            ..Default::default()
+            cursor: cursor.clone(),
+            is_loop: false,
         };
 
         result.scale.is_loop = true;
@@ -51,6 +58,7 @@ impl Pattern {
     }
 
     pub fn reset(&mut self) {
+        self.cursor.position = (0, 0).into();
         self.degree.reset();
         self.scale.reset();
         self.root.reset();
@@ -91,6 +99,7 @@ impl Iterator for Pattern {
         //TODO:
         //Calculate pitch
         //Don't forget to offset position with self.start_position for returning events
+        let position = self.cursor.next().unwrap();
         if let Some((degree, modulation)) = self.next_degree_and_modulation() {}
 
         None
@@ -108,10 +117,10 @@ pub struct EventStream<T: Clone + Debug + Default> {
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
-    pub fn new(events: Vec<Event<T>>, cursor: Cursor) -> Self {
+    pub fn new(events: Vec<Event<T>>, cursor: &Cursor) -> Self {
         let mut result = Self {
             events,
-            cursor,
+            cursor: cursor.clone(),
             ..Default::default()
         };
         result.sort();
@@ -286,7 +295,7 @@ mod tests {
                 (15, (0, 0).into()).into(),
                 (17, (1, 0).into()).into(),
             ],
-            Cursor::new(2),
+            &Cursor::new(2),
         );
 
         let mut expected: Vec<Event<Vec<u64>>> = vec![
@@ -313,7 +322,7 @@ mod tests {
                 (21, (1, 0).into()).into(),
                 (15, (0, 0).into()).into(),
             ],
-            Cursor::new(2),
+            &Cursor::new(2),
         );
         stream.set_loop(true);
 
@@ -337,7 +346,7 @@ mod tests {
     #[test]
     fn stream_loop_enabled_afterwards() {
         let mut stream =
-            EventStream::new(vec![(0, (0, 0).into()).into()], Cursor::new(2));
+            EventStream::new(vec![(0, (0, 0).into()).into()], &Cursor::new(2));
         stream.next();
         stream.set_loop(true);
 
