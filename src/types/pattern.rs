@@ -311,7 +311,9 @@ mod tests {
             assert_eq!(Some(expected.remove(0)), stream.next());
         }
 
-        assert_eq!(None, stream.next());
+        for _ in 0..expected.len() + 3 {
+            assert_eq!(None, stream.next());
+        }
     }
 
     #[test]
@@ -384,6 +386,8 @@ mod tests {
             );
         }
 
-        assert_eq!(None, pattern.next_degree_and_modulation());
+        for _ in 0..expected.len() + 3 {
+            assert_eq!(None, pattern.next_degree_and_modulation());
+        }
     }
 }
