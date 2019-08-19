@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests;
 
-use crate::clock::Clock;
 use crate::ast;
+use crate::clock::Clock;
 use crate::types::{self, Function, Identifier, Mixer, Value};
 use std::collections::HashMap;
 use std::rc::Rc;

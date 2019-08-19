@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::fmt::Debug;
 
 use crate::clock::{Cursor, CursorPosition};
@@ -16,6 +15,15 @@ pub struct Pattern {
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
     start_position: CursorPosition,
+    is_loop: bool,
+}
+
+macro_rules! impl_schedule_method {
+    ($name:ident, $field:ident, $e_type:ty) => {
+            pub(crate) fn $name(&mut self, event: $e_type) {
+                self.$field.add_event(event);
+            }
+    };
 }
 
 impl Pattern {
@@ -31,6 +39,49 @@ impl Pattern {
 
         result
     }
+
+    pub fn set_loop(&mut self, is_loop: bool) {
+        self.is_loop = is_loop;
+        self.degree.is_loop = is_loop;
+        self.modulation.is_loop = is_loop;
+    }
+
+    pub fn is_loop(&self) -> bool {
+        self.is_loop
+    }
+
+    pub fn reset(&mut self) {
+        self.degree.reset();
+        self.scale.reset();
+        self.root.reset();
+        self.octave.reset();
+        self.modulation.reset();
+    }
+
+    fn next_degree_and_modulation(
+        &mut self,
+    ) -> Option<(Event<Vec<Degree>>, Event<Vec<Modulation>>)> {
+        let degree = self.degree.next();
+        let modulation = self.modulation.next();
+
+        if degree.is_none() && modulation.is_none() {
+            None
+        } else if degree.is_none() && modulation.is_some() {
+            self.degree.reset();
+            self.degree.next().map(|d| (d, modulation.unwrap()))
+        } else if degree.is_some() && modulation.is_none() {
+            self.modulation.reset();
+            self.modulation.next().map(|m| (degree.unwrap(), m))
+        } else {
+            Some((degree.unwrap(), modulation.unwrap()))
+        }
+    }
+
+    impl_schedule_method!(schedule_degree, degree, Event<Degree>);
+    impl_schedule_method!(schedule_scale, scale, Event<Scale>);
+    impl_schedule_method!(schedule_root, root, Event<Root>);
+    impl_schedule_method!(schedult_octave, octave, Event<Octave>);
+    impl_schedule_method!(schedule_modulation, modulation, Event<Modulation>);
 }
 
 impl Iterator for Pattern {
@@ -40,6 +91,8 @@ impl Iterator for Pattern {
         //TODO:
         //Calculate pitch
         //Don't forget to offset position with self.start_position for returning events
+        if let Some((degree, modulation)) = self.next_degree_and_modulation() {}
+
         None
     }
 }
@@ -51,7 +104,7 @@ pub struct EventStream<T: Clone + Debug + Default> {
     events: Vec<Event<T>>,
     increment: usize,
     cursor: Cursor,
-    pub is_loop: bool,
+    is_loop: bool,
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
@@ -78,6 +131,15 @@ impl<T: Clone + Debug + Default> EventStream<T> {
     /// Get [CursorPosition](../clock/struct.CursorPosition.html) of the last event.
     pub fn last_position(&self) -> Option<CursorPosition> {
         self.events.last().map(|e| e.position)
+    }
+
+    pub fn set_loop(&mut self, value: bool) {
+        self.is_loop = value;
+        self.check_loop();
+    }
+
+    pub fn is_loop(&self) -> bool {
+        self.is_loop
     }
 
     /// Reset position to beginning.
@@ -117,6 +179,7 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
     }
 }
 
+/// Event is a scheduled value.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Event<V: Clone + Debug + Default> {
     value: V,
@@ -175,12 +238,12 @@ pub(crate) struct Modulation {
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub(crate) struct Scale {
-    pub name: String,
-    pub pitch_set: HashSet<u8>,
+    pub(crate) name: String,
+    pub(crate) pitch_set: Vec<u8>,
 }
 
 impl Scale {
-    pub fn new(name: &str, pitch_set: &HashSet<u8>) -> Self {
+    pub(crate) fn new(name: &str, pitch_set: &Vec<u8>) -> Self {
         Scale {
             name: name.to_string(),
             pitch_set: pitch_set.clone(),
@@ -190,13 +253,9 @@ impl Scale {
 
 impl Default for Scale {
     fn default() -> Self {
-        let mut set: HashSet<u8> = HashSet::new();
-        for n in 0..11u8 {
-            set.insert(n);
-        }
         Scale {
             name: "Chromatic".to_string(),
-            pitch_set: set,
+            pitch_set: (0..11u8).collect(),
         }
     }
 }
@@ -256,7 +315,7 @@ mod tests {
             ],
             Cursor::new(2),
         );
-        stream.is_loop = true;
+        stream.set_loop(true);
 
         let expected: Vec<Event<Vec<u64>>> = vec![
             (vec![15], (0, 0).into()).into(),
@@ -273,5 +332,49 @@ mod tests {
                 stream.next()
             );
         }
+    }
+
+    #[test]
+    fn stream_loop_enabled_afterwards() {
+        let mut stream =
+            EventStream::new(vec![(0, (0, 0).into()).into()], Cursor::new(2));
+        stream.next();
+        stream.set_loop(true);
+
+        for _ in 0..5 {
+            assert_eq!(
+                Some(Event::from((vec![0], (0, 0).into()))),
+                stream.next()
+            );
+        }
+    }
+
+    #[test]
+    fn pattern_degree_modulation_cycle() {
+        let mut pattern = Pattern::default();
+        pattern.schedule_degree((Degree::default(), (0, 0).into()).into());
+        pattern
+            .schedule_modulation((Modulation::default(), (0, 0).into()).into());
+        pattern.schedule_degree((Degree::default(), (0, 1).into()).into());
+
+        let mut expected: Vec<(Event<Vec<Degree>>, Event<Vec<Modulation>>)> = vec![
+            (
+                (vec![Degree::default()], (0, 0).into()).into(),
+                (vec![Modulation::default()], (0, 0).into()).into(),
+            ),
+            (
+                (vec![Degree::default()], (0, 1).into()).into(),
+                (vec![Modulation::default()], (0, 0).into()).into(),
+            ),
+        ];
+
+        for _ in 0..expected.len() {
+            assert_eq!(
+                Some(expected.remove(0)),
+                pattern.next_degree_and_modulation()
+            );
+        }
+
+        assert_eq!(None, pattern.next_degree_and_modulation());
     }
 }

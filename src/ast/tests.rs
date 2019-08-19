@@ -32,8 +32,10 @@ fn test_parse_boolean() {
 
 #[test]
 fn test_parse_string() {
-    let result: ParseResult<Expression> =
-        CollyParser::parse_source_for_rule("\"hello world {} \n\"", Rule::Expression);
+    let result: ParseResult<Expression> = CollyParser::parse_source_for_rule(
+        "\"hello world {} \n\"",
+        Rule::Expression,
+    );
     assert_eq!(
         Expression::String("hello world {} \n".to_string()),
         result.unwrap()
@@ -75,8 +77,10 @@ fn test_parse_property_getter() {
             Identifier("fred".into()),
         ],
     };
-    let result: ParseResult<Expression> =
-        CollyParser::parse_source_for_rule(":foo.bar.baz.fred", Rule::Expression);
+    let result: ParseResult<Expression> = CollyParser::parse_source_for_rule(
+        ":foo.bar.baz.fred",
+        Rule::Expression,
+    );
     assert_eq!(expected, result.unwrap());
 }
 
@@ -139,8 +143,10 @@ fn test_parse_function_expression() {
             })),
         ],
     };
-    let result: ParseResult<FunctionCall> =
-        CollyParser::parse_source_for_rule("(foo 1 (bar 2 false))", Rule::FunctionCall);
+    let result: ParseResult<FunctionCall> = CollyParser::parse_source_for_rule(
+        "(foo 1 (bar 2 false))",
+        Rule::FunctionCall,
+    );
     assert_eq!(expected, result.unwrap());
 }
 
@@ -357,8 +363,10 @@ fn test_parse_variable_assignment() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<Assignment> =
-        CollyParser::parse_source_for_rule(":foo = bar (baz true)", Rule::AssignStatement);
+    let result: ParseResult<Assignment> = CollyParser::parse_source_for_rule(
+        ":foo = bar (baz true)",
+        Rule::AssignStatement,
+    );
     let expected = Assignment::Variable {
         assignee: Identifier("foo".into()),
         assignment: SuperExpression::Method(MethodCall {
@@ -379,8 +387,10 @@ fn test_parse_variable_assignment() {
 
 #[test]
 fn test_parse_properties_assignment() {
-    let result: ParseResult<Assignment> =
-        CollyParser::parse_source_for_rule("$11.12 {foo: true}", Rule::AssignStatement);
+    let result: ParseResult<Assignment> = CollyParser::parse_source_for_rule(
+        "$11.12 {foo: true}",
+        Rule::AssignStatement,
+    );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -503,7 +513,10 @@ fn test_parse_pattern_expression() {
     assert_eq!(expected, result.unwrap());
 
     let result: ParseResult<PatternExpression> =
-        CollyParser::parse_source_for_rule("|| => world", Rule::PatternExpression);
+        CollyParser::parse_source_for_rule(
+            "|| => world",
+            Rule::PatternExpression,
+        );
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
         inner_method: None,
@@ -517,7 +530,10 @@ fn test_parse_pattern_expression() {
     assert_eq!(expected, result.unwrap());
 
     let result: ParseResult<PatternExpression> =
-        CollyParser::parse_source_for_rule("|| {foo: true}", Rule::PatternExpression);
+        CollyParser::parse_source_for_rule(
+            "|| {foo: true}",
+            Rule::PatternExpression,
+        );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -533,10 +549,11 @@ fn test_parse_pattern_expression() {
 
     assert_eq!(expected, result.unwrap());
 
-    let result: ParseResult<PatternExpression> = CollyParser::parse_source_for_rule(
-        "|| hello => world {foo: true}",
-        Rule::PatternExpression,
-    );
+    let result: ParseResult<PatternExpression> =
+        CollyParser::parse_source_for_rule(
+            "|| hello => world {foo: true}",
+            Rule::PatternExpression,
+        );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
     map.insert(
         Identifier("foo".into()),
@@ -562,7 +579,10 @@ fn test_parse_pattern_expression() {
 #[test]
 fn test_parse_pattern_expression_list() {
     let result: ParseResult<PatternSuperExpression> =
-        CollyParser::parse_source_for_rule("||, ||, ||", Rule::PatternSuperExpression);
+        CollyParser::parse_source_for_rule(
+            "||, ||, ||",
+            Rule::PatternSuperExpression,
+        );
     let expected = PatternSuperExpression::ExpressionList(vec![
         PatternExpression {
             pattern: Pattern(Vec::new()),
