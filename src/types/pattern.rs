@@ -107,10 +107,30 @@ impl Pattern {
             .unwrap()
     }
 
+    fn next_pitches(&mut self, degree: Event<Vec<Degree>>) -> Vec<Value> {
+        let roots = Pattern::values_or_default(self.root.next());
+        let octaves = Pattern::values_or_default(self.octave.next());
+        let scales = Pattern::values_or_default(self.scale.next());
+
+        degree
+            .value
+            .iter()
+            .enumerate()
+            .map(|(n, d)| {
+                Value::new_pitch(
+                    d,
+                    &roots[n % roots.len()],
+                    &octaves[n % octaves.len()],
+                    &scales[n % scales.len()],
+                )
+            })
+            .collect()
+    }
+
     impl_schedule_method!(schedule_degree, degree, Event<Degree>);
     impl_schedule_method!(schedule_scale, scale, Event<Scale>);
     impl_schedule_method!(schedule_root, root, Event<Root>);
-    impl_schedule_method!(schedult_octave, octave, Event<Octave>);
+    impl_schedule_method!(schedule_octave, octave, Event<Octave>);
     impl_schedule_method!(schedule_modulation, modulation, Event<Modulation>);
 }
 
@@ -119,29 +139,13 @@ impl Iterator for Pattern {
 
     fn next(&mut self) -> Option<Self::Item> {
         let position = self.cursor.next().unwrap();
-        if let Some((degree, modulation)) = self.next_degree_and_modulation() {
-            let roots = Pattern::values_or_default(self.root.next());
-            let octaves = Pattern::values_or_default(self.octave.next());
-            let scales = Pattern::values_or_default(self.scale.next());
 
-            let mut pitches: Vec<Value> = degree
-                .value
-                .iter()
-                .enumerate()
-                .map(|(n, d)| {
-                    Value::new_pitch(
-                        d,
-                        &roots[n % roots.len()],
-                        &octaves[n % octaves.len()],
-                        &scales[n % scales.len()],
-                    )
-                })
-                .collect();
+        if let Some((degree, modulation)) = self.next_degree_and_modulation() {
             let mut modulations: Vec<Value> =
                 modulation.value.into_iter().map(Value::from).collect();
-            
-            pitches.append(&mut modulations);
-            return Some(Event::new(pitches, position));
+            modulations.append(&mut self.next_pitches(degree));
+
+            return Some(Event::new(modulations, position));
         }
 
         None
