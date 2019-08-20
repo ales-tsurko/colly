@@ -268,6 +268,43 @@ impl Degree {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Value {
+    Pitch(u64, EventState),
+    Modulation(String, f64),
+}
+
+impl Value {
+    pub(crate) fn new_pitch(
+        degree: &Degree,
+        root: &Root,
+        octave: &Octave,
+        scale: &Scale,
+    ) -> Value {
+        let pitch_offset = degree.as_pitch_at_scale(scale);
+        let pitch = ((octave.pitch + root.0) as i64 + pitch_offset).max(0);
+        Value::Pitch(pitch as u64, degree.state)
+    }
+}
+
+impl From<Modulation> for Value {
+    fn from(value: Modulation) -> Self {
+        Value::Modulation(value.name, value.value)
+    }
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Value::Pitch(60, EventState::On)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum EventState {
+    On,
+    Off,
+}
+
 impl Default for Degree {
     fn default() -> Self {
         Degree {
@@ -286,12 +323,6 @@ impl From<u64> for Degree {
             state: EventState::On,
         }
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub enum EventState {
-    On,
-    Off,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -370,37 +401,6 @@ impl Default for Scale {
             name: "Chromatic".to_string(),
             pitch_set: (0..12).collect(),
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Value {
-    Pitch(u64, EventState),
-    Modulation(String, f64),
-}
-
-impl Value {
-    pub(crate) fn new_pitch(
-        degree: &Degree,
-        root: &Root,
-        octave: &Octave,
-        scale: &Scale,
-    ) -> Value {
-        let pitch_offset = degree.as_pitch_at_scale(scale);
-        let pitch = ((octave.pitch + root.0) as i64 + pitch_offset).max(0);
-        Value::Pitch(pitch as u64, degree.state)
-    }
-}
-
-impl From<Modulation> for Value {
-    fn from(value: Modulation) -> Self {
-        Value::Modulation(value.name, value.value)
-    }
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Value::Pitch(60, EventState::On)
     }
 }
 
@@ -556,5 +556,30 @@ mod tests {
         let mut degree = Degree::from(0);
         degree.alteration = -4;
         assert_eq!(-4, degree.as_pitch_at_scale(&scale));
+    }
+
+    #[test]
+    fn init_pitch_value() {
+        let mut degree = Degree::default();
+        let mut root = Root::default();
+        let mut octave = Octave::default();
+        let scale = Scale::default();
+        let value = Value::new_pitch(&degree, &root, &octave, &scale);
+
+        assert_eq!(Value::Pitch(60, EventState::On), value);
+
+        octave.set_as_octave(0);
+        root.0 = 0;
+        degree.alteration = -5;
+        let value = Value::new_pitch(&degree, &root, &octave, &scale);
+        assert_eq!(Value::Pitch(0, EventState::On), value);
+
+        octave.set_as_octave(4);
+        root.0 = 2;
+        degree.value = 3;
+        degree.alteration = 1;
+        degree.state = EventState::Off;
+        let value = Value::new_pitch(&degree, &root, &octave, &scale);
+        assert_eq!(Value::Pitch(54, EventState::Off), value);
     }
 }
