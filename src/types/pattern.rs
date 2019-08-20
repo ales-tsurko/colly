@@ -14,7 +14,6 @@ pub struct Pattern {
     root: EventStream<Root>,
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
-    start_position: CursorPosition,
     cursor: Cursor,
     is_loop: bool,
 }
@@ -28,17 +27,29 @@ macro_rules! impl_schedule_method {
 }
 
 impl Pattern {
-    pub fn new(start_position: CursorPosition, cursor: &Cursor) -> Self {
+    /// To schedule pattern set needed position to the passed cursor.
+    pub fn new(cursor: &Cursor) -> Self {
         let mut result = Self {
-            degree: EventStream::new(vec![Event::<Degree>::default()], cursor),
-            scale: EventStream::new(vec![Event::<Scale>::default()], cursor),
-            root: EventStream::new(vec![Event::<Root>::default()], cursor),
-            octave: EventStream::new(vec![Event::<Octave>::default()], cursor),
+            degree: EventStream::new(
+                vec![Event::<Degree>::default()],
+                cursor.get_resolution(),
+            ),
+            scale: EventStream::new(
+                vec![Event::<Scale>::default()],
+                cursor.get_resolution(),
+            ),
+            root: EventStream::new(
+                vec![Event::<Root>::default()],
+                cursor.get_resolution(),
+            ),
+            octave: EventStream::new(
+                vec![Event::<Octave>::default()],
+                cursor.get_resolution(),
+            ),
             modulation: EventStream::new(
                 vec![Event::<Modulation>::default()],
-                cursor,
+                cursor.get_resolution(),
             ),
-            start_position,
             cursor: cursor.clone(),
             is_loop: false,
         };
@@ -162,10 +173,10 @@ pub struct EventStream<T: Clone + Debug + Default> {
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
-    pub fn new(events: Vec<Event<T>>, cursor: &Cursor) -> Self {
+    pub fn new(events: Vec<Event<T>>, resolution: u64) -> Self {
         let mut result = Self {
             events,
-            cursor: cursor.clone(),
+            cursor: Cursor::new(resolution),
             ..Default::default()
         };
         result.sort();
@@ -421,7 +432,7 @@ mod tests {
                 (15, (0, 0).into()).into(),
                 (17, (1, 0).into()).into(),
             ],
-            &Cursor::new(2),
+            2,
         );
 
         let mut expected: Vec<Event<Vec<u64>>> = vec![
@@ -450,7 +461,7 @@ mod tests {
                 (21, (1, 0).into()).into(),
                 (15, (0, 0).into()).into(),
             ],
-            &Cursor::new(2),
+            2,
         );
         stream.set_loop(true);
 
@@ -473,8 +484,7 @@ mod tests {
 
     #[test]
     fn stream_loop_enabled_afterwards() {
-        let mut stream =
-            EventStream::new(vec![(0, (0, 0).into()).into()], &Cursor::new(2));
+        let mut stream = EventStream::new(vec![(0, (0, 0).into()).into()], 2);
         stream.next();
         stream.set_loop(true);
 
