@@ -30,11 +30,14 @@ macro_rules! impl_schedule_method {
 impl Pattern {
     pub fn new(start_position: CursorPosition, cursor: &Cursor) -> Self {
         let mut result = Self {
-            degree: EventStream::new(vec![], cursor),
-            scale: EventStream::new(vec![], cursor),
-            root: EventStream::new(vec![], cursor),
-            octave: EventStream::new(vec![], cursor),
-            modulation: EventStream::new(vec![], cursor),
+            degree: EventStream::new(vec![Event::<Degree>::default()], cursor),
+            scale: EventStream::new(vec![Event::<Scale>::default()], cursor),
+            root: EventStream::new(vec![Event::<Root>::default()], cursor),
+            octave: EventStream::new(vec![Event::<Octave>::default()], cursor),
+            modulation: EventStream::new(
+                vec![Event::<Modulation>::default()],
+                cursor,
+            ),
             start_position,
             cursor: cursor.clone(),
             is_loop: false,
@@ -47,16 +50,19 @@ impl Pattern {
         result
     }
 
+    /// Set if the pattern should loop.
     pub fn set_loop(&mut self, is_loop: bool) {
         self.is_loop = is_loop;
         self.degree.is_loop = is_loop;
         self.modulation.is_loop = is_loop;
     }
 
+    /// Get if pattern is loop.
     pub fn is_loop(&self) -> bool {
         self.is_loop
     }
 
+    /// Reset patern to start position.
     pub fn reset(&mut self) {
         self.cursor.position = (0, 0).into();
         self.degree.reset();
@@ -85,6 +91,22 @@ impl Pattern {
         }
     }
 
+    fn values_or_default<T>(value: Option<Event<Vec<T>>>) -> Vec<T>
+    where
+        T: Clone + Default + Debug,
+    {
+        value
+            .or_else(|| Some((vec![T::default()], (0, 0).into()).into()))
+            .map(|e| {
+                if e.value.is_empty() {
+                    vec![T::default()]
+                } else {
+                    e.value
+                }
+            })
+            .unwrap()
+    }
+
     impl_schedule_method!(schedule_degree, degree, Event<Degree>);
     impl_schedule_method!(schedule_scale, scale, Event<Scale>);
     impl_schedule_method!(schedule_root, root, Event<Root>);
@@ -96,11 +118,31 @@ impl Iterator for Pattern {
     type Item = Event<Vec<Value>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        //TODO:
-        //Calculate pitch
-        //Don't forget to offset position with self.start_position for returning events
         let position = self.cursor.next().unwrap();
-        if let Some((degree, modulation)) = self.next_degree_and_modulation() {}
+        if let Some((degree, modulation)) = self.next_degree_and_modulation() {
+            let roots = Pattern::values_or_default(self.root.next());
+            let octaves = Pattern::values_or_default(self.octave.next());
+            let scales = Pattern::values_or_default(self.scale.next());
+
+            let mut pitches: Vec<Value> = degree
+                .value
+                .iter()
+                .enumerate()
+                .map(|(n, d)| {
+                    Value::new_pitch(
+                        d,
+                        &roots[n % roots.len()],
+                        &octaves[n % octaves.len()],
+                        &scales[n % scales.len()],
+                    )
+                })
+                .collect();
+            let mut modulations: Vec<Value> =
+                modulation.value.into_iter().map(Value::from).collect();
+            
+            pitches.append(&mut modulations);
+            return Some(Event::new(pitches, position));
+        }
 
         None
     }
@@ -214,7 +256,16 @@ impl<T: Clone + Debug + Default> From<(T, CursorPosition)> for Event<T> {
 pub(crate) struct Degree {
     value: u64,
     alteration: i64,
-    state: DegreeState,
+    state: EventState,
+}
+
+impl Degree {
+    pub(crate) fn as_pitch_at_scale(&self, scale: &Scale) -> i64 {
+        let octave_offset = self.value / scale.pitch_set.len() as u64 * 12;
+        (scale.pitch_set[self.value as usize % scale.pitch_set.len()]
+            + octave_offset) as i64
+            + self.alteration
+    }
 }
 
 impl Default for Degree {
@@ -222,22 +273,75 @@ impl Default for Degree {
         Degree {
             value: 0,
             alteration: 0,
-            state: DegreeState::On,
+            state: EventState::On,
         }
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum DegreeState {
+impl From<u64> for Degree {
+    fn from(value: u64) -> Self {
+        Self {
+            value,
+            alteration: 0,
+            state: EventState::On,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum EventState {
     On,
     Off,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub(crate) struct Root(u8);
+pub(crate) struct Root(pub(crate) u64);
 
-#[derive(Clone, Debug, PartialEq, Default)]
-pub(crate) struct Octave(u8);
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Octave {
+    pitch: u64,
+    octave: u64,
+}
+
+impl Octave {
+    pub(crate) fn with_octave(octave: u64) -> Self {
+        Self {
+            pitch: octave * 12,
+            octave,
+        }
+    }
+
+    pub(crate) fn with_pitch(pitch: u64) -> Self {
+        Self {
+            pitch,
+            octave: pitch / 12,
+        }
+    }
+
+    pub(crate) fn set_as_octave(&mut self, value: u64) {
+        self.pitch = 12 * value;
+        self.octave = value;
+    }
+
+    pub(crate) fn set_as_pitch(&mut self, value: u64) {
+        self.octave = value / 12;
+        self.pitch = self.octave * 12;
+    }
+
+    pub(crate) fn get_octave_number(&self) -> u64 {
+        self.octave
+    }
+
+    pub(crate) fn get_pitch(&self) -> u64 {
+        self.pitch
+    }
+}
+
+impl Default for Octave {
+    fn default() -> Self {
+        Self::with_octave(5)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub(crate) struct Modulation {
@@ -248,11 +352,11 @@ pub(crate) struct Modulation {
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 pub(crate) struct Scale {
     pub(crate) name: String,
-    pub(crate) pitch_set: Vec<u8>,
+    pub(crate) pitch_set: Vec<u64>,
 }
 
 impl Scale {
-    pub(crate) fn new(name: &str, pitch_set: &Vec<u8>) -> Self {
+    pub(crate) fn new(name: &str, pitch_set: &Vec<u64>) -> Self {
         Scale {
             name: name.to_string(),
             pitch_set: pitch_set.clone(),
@@ -264,20 +368,39 @@ impl Default for Scale {
     fn default() -> Self {
         Scale {
             name: "Chromatic".to_string(),
-            pitch_set: (0..11u8).collect(),
+            pitch_set: (0..12).collect(),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    Pitch(u64),
+    Pitch(u64, EventState),
     Modulation(String, f64),
+}
+
+impl Value {
+    pub(crate) fn new_pitch(
+        degree: &Degree,
+        root: &Root,
+        octave: &Octave,
+        scale: &Scale,
+    ) -> Value {
+        let pitch_offset = degree.as_pitch_at_scale(scale);
+        let pitch = ((octave.pitch + root.0) as i64 + pitch_offset).max(0);
+        Value::Pitch(pitch as u64, degree.state)
+    }
+}
+
+impl From<Modulation> for Value {
+    fn from(value: Modulation) -> Self {
+        Value::Modulation(value.name, value.value)
+    }
 }
 
 impl Default for Value {
     fn default() -> Self {
-        Value::Pitch(60)
+        Value::Pitch(60, EventState::On)
     }
 }
 
@@ -389,5 +512,49 @@ mod tests {
         for _ in 0..expected.len() + 3 {
             assert_eq!(None, pattern.next_degree_and_modulation());
         }
+    }
+
+    #[test]
+    fn octave() {
+        let mut octave = Octave::with_octave(5);
+        assert_eq!(
+            Octave {
+                pitch: 60,
+                octave: 5
+            },
+            octave
+        );
+
+        octave.set_as_octave(3);
+        assert_eq!(
+            Octave {
+                pitch: 36,
+                octave: 3
+            },
+            octave
+        );
+
+        octave.set_as_pitch(75);
+        assert_eq!(
+            Octave {
+                pitch: 72,
+                octave: 6
+            },
+            octave
+        );
+    }
+
+    #[test]
+    fn degree_as_pitch() {
+        let scale = Scale::default();
+        let degree = Degree::default();
+        assert_eq!(0, degree.as_pitch_at_scale(&scale));
+
+        let degree = Degree::from(13);
+        assert_eq!(13, degree.as_pitch_at_scale(&scale));
+
+        let mut degree = Degree::from(0);
+        degree.alteration = -4;
+        assert_eq!(-4, degree.as_pitch_at_scale(&scale));
     }
 }
