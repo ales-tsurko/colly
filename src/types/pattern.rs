@@ -140,15 +140,14 @@ impl Iterator for Pattern {
     fn next(&mut self) -> Option<Self::Item> {
         let position = self.cursor.next().unwrap();
 
-        if let Some((degree, modulation)) = self.next_degree_and_modulation() {
-            let mut modulations: Vec<Value> =
-                modulation.value.into_iter().map(Value::from).collect();
-            modulations.append(&mut self.next_pitches(degree));
+        self.next_degree_and_modulation()
+            .map(|(degree, modulation)| {
+                let mut modulations: Vec<Value> =
+                    modulation.value.into_iter().map(Value::from).collect();
+                modulations.append(&mut self.next_pitches(degree));
 
-            return Some(Event::new(modulations, position));
-        }
-
-        None
+                Event::new(modulations, position)
+            })
     }
 }
 
