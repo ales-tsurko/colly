@@ -170,6 +170,31 @@ pub struct EventStream<T: Clone + Debug + Default> {
     increment: usize,
     cursor: Cursor,
     is_loop: bool,
+    /// If this field is set to `true` the EventStream::next will return
+    /// a value even if there is no one at the position.
+    /// It will either return a previous value or default 
+    /// if there were previously no any.
+    pub fill_gaps: bool,
+    gap_value: Event<Vec<T>>
+}
+
+impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
+    type Item = Event<Vec<T>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.events.is_empty()
+            || (self.increment >= self.events.len() && !self.is_loop)
+        {
+            return None;
+        }
+
+        let mut result: Self::Item = self.event_at_current_position();
+        result = self.handle_gaps(result);
+
+        self.cursor.next().unwrap(); // Cursor::next is always Some
+        self.check_loop();
+        Some(result)
+    }
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
@@ -177,6 +202,7 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         let mut result = Self {
             events,
             cursor: Cursor::new(resolution),
+            gap_value: (vec![T::default()], (0, 0).into()).into(),
             ..Default::default()
         };
         result.sort();
@@ -218,19 +244,9 @@ impl<T: Clone + Debug + Default> EventStream<T> {
             self.reset();
         }
     }
-}
 
-impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
-    type Item = Event<Vec<T>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.events.is_empty()
-            || (self.increment >= self.events.len() && !self.is_loop)
-        {
-            return None;
-        }
-
-        let mut result: Self::Item = (vec![], self.cursor.position).into();
+    fn event_at_current_position(&mut self) -> Event<Vec<T>> {
+        let mut result: Event<Vec<T>> = (vec![], self.cursor.position).into();
         while self.increment < self.events.len()
             && self.cursor.position == self.events[self.increment].position
         {
@@ -238,9 +254,19 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
             self.increment += 1;
         }
 
-        self.cursor.next().unwrap(); // Cursor::next is always Some
-        self.check_loop();
-        Some(result)
+        result
+    }
+
+    fn handle_gaps(&mut self, event: Event<Vec<T>>) -> Event<Vec<T>> {
+        if !event.value.is_empty() {
+            self.gap_value = event.clone();
+        }
+
+        if self.fill_gaps && event.value.is_empty() {
+            self.gap_value.clone()
+        } else {
+            event
+        }
     }
 }
 
