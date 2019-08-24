@@ -31,23 +31,23 @@ impl Pattern {
     pub fn new(cursor: &Cursor) -> Self {
         let mut result = Self {
             degree: EventStream::new(
-                vec![Event::<Degree>::default()],
+                vec![Default::default()],
                 cursor.get_resolution(),
             ),
             scale: EventStream::new(
-                vec![Event::<Scale>::default()],
+                vec![Default::default()],
                 cursor.get_resolution(),
             ),
             root: EventStream::new(
-                vec![Event::<Root>::default()],
+                vec![Default::default()],
                 cursor.get_resolution(),
             ),
             octave: EventStream::new(
-                vec![Event::<Octave>::default()],
+                vec![Default::default()],
                 cursor.get_resolution(),
             ),
             modulation: EventStream::new(
-                vec![Event::<Modulation>::default()],
+                vec![Default::default()],
                 cursor.get_resolution(),
             ),
             cursor: cursor.clone(),
@@ -55,8 +55,13 @@ impl Pattern {
         };
 
         result.scale.is_loop = true;
+        result.scale.fill_gaps = true;
+
         result.root.is_loop = true;
+        result.root.fill_gaps = true;
+
         result.octave.is_loop = true;
+        result.octave.fill_gaps = true;
 
         result
     }
