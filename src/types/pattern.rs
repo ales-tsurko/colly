@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::clock::{Cursor, CursorPosition};
+use crate::clock::{Cursor, CursorPosition, Duration};
 
 use serde_derive::Deserialize;
 
@@ -26,15 +26,24 @@ macro_rules! impl_schedule_method {
             /// independent of cursor's position.
     pub(crate) fn $name(
         &mut self,
-        event: Event<$e_type>,
-        duration: CursorPosition,
+        value: $e_type,
+        position: CursorPosition,
+        duration: Duration,
     ) {
         let mut cursor = self.cursor.clone();
-        cursor.position = event.position;
-        let mut off_event = event.clone();
-        off_event.position = cursor + duration;
-        self.$field.add_event(event);
-        self.$field.add_event(off_event);
+        cursor.position = position;
+
+        self.$field.add_event(Event {
+            value: value.clone(),
+            position,
+            state: EventState::On,
+        });
+
+        self.$field.add_event(Event {
+            value,
+            position: cursor + duration,
+            state: EventState::Off,
+        });
     }
     };
 }
@@ -89,55 +98,60 @@ impl Pattern {
 
     fn next_degree_and_modulation(
         &mut self,
-    ) -> Option<(Event<Vec<Degree>>, Event<Vec<Modulation>>)> {
+    ) -> Option<(Vec<Event<Degree>>, Vec<Event<Modulation>>)> {
         let degree = self.degree.next();
         let modulation = self.modulation.next();
 
         if degree.is_none() && modulation.is_none() {
-            None
-        } else if degree.is_none() && modulation.is_some() {
-            self.degree.reset();
-            self.degree.next().map(|d| (d, modulation.unwrap()))
-        } else if degree.is_some() && modulation.is_none() {
-            self.modulation.reset();
-            self.modulation.next().map(|m| (degree.unwrap(), m))
-        } else {
-            Some((degree.unwrap(), modulation.unwrap()))
+            return None;
         }
+        
+        if degree.is_none() {
+            self.degree.reset();
+        }
+        
+        if modulation.is_none() {
+            self.modulation.reset();
+        }
+
+        Some((degree.unwrap_or_default(), modulation.unwrap_or_default()))
     }
 
-    fn values_or_default<T>(value: Option<Event<Vec<T>>>) -> Vec<T>
+    fn values_or_default<T>(value: Option<Vec<Event<T>>>) -> Vec<Event<T>>
     where
         T: Clone + Default + Debug,
     {
         value
-            .or_else(|| Some((vec![T::default()], (0, 0).into()).into()))
+            .or_else(|| Some(vec![Default::default()]))
             .map(|e| {
-                if e.value.is_empty() {
-                    vec![T::default()]
+                if e.is_empty() {
+                    vec![Default::default()]
                 } else {
-                    e.value
+                    e
                 }
             })
             .unwrap()
     }
 
-    fn next_pitches(&mut self, degree: Event<Vec<Degree>>) -> Vec<Value> {
+    fn next_pitches(
+        &mut self,
+        degree: Vec<Event<Degree>>,
+    ) -> Vec<Event<Value>> {
         let roots = Pattern::values_or_default(self.root.next());
         let octaves = Pattern::values_or_default(self.octave.next());
         let scales = Pattern::values_or_default(self.scale.next());
 
         degree
-            .value
             .iter()
             .enumerate()
             .map(|(n, d)| {
-                Value::new_pitch(
-                    d,
-                    &roots[n % roots.len()],
-                    &octaves[n % octaves.len()],
-                    &scales[n % scales.len()],
-                )
+                let value = Value::new_pitch(
+                    &d.value,
+                    &roots[n % roots.len()].value,
+                    &octaves[n % octaves.len()].value,
+                    &scales[n % scales.len()].value,
+                );
+                Event::new(value, self.cursor.position, d.state)
             })
             .collect()
     }
@@ -150,20 +164,29 @@ impl Pattern {
 }
 
 impl Iterator for Pattern {
-    type Item = Event<Vec<Value>>;
+    type Item = Vec<Event<Value>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let position = self.cursor.position;
+        let result =
+            self.next_degree_and_modulation()
+                .map(|(degree, modulation)| {
+                    let mut modulations: Vec<Event<Value>> = modulation
+                        .into_iter()
+                        .map(|m| {
+                            Event::new(
+                                Value::from(m.value),
+                                self.cursor.position,
+                                m.state,
+                            )
+                        })
+                        .collect();
+                    modulations.append(&mut self.next_pitches(degree));
+
+                    modulations
+                });
+
         self.cursor.next();
-
-        self.next_degree_and_modulation()
-            .map(|(degree, modulation)| {
-                let mut modulations: Vec<Value> =
-                    modulation.value.into_iter().map(Value::from).collect();
-                modulations.append(&mut self.next_pitches(degree));
-
-                Event::new(modulations, position, EventState::On)
-            })
+        result
     }
 }
 
@@ -180,11 +203,11 @@ pub struct EventStream<T: Clone + Debug + Default> {
     /// It will either return a previous value or default
     /// if there were previously no any.
     pub fill_gaps: bool,
-    gap_value: Event<Vec<T>>,
+    gap_value: Vec<Event<T>>,
 }
 
 impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
-    type Item = Event<Vec<T>>;
+    type Item = Vec<Event<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.events.is_empty()
@@ -193,7 +216,12 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
             return None;
         }
 
-        let mut result: Self::Item = self.event_at_current_position();
+        let mut result: Self::Item = self.events[self.increment..]
+            .iter()
+            .filter(|e| e.position == self.cursor.position)
+            .cloned()
+            .collect();
+        self.increment += result.len();
         result = self.handle_gaps(result);
 
         self.cursor.next().unwrap(); // Cursor::next is always Some
@@ -207,7 +235,7 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         let mut result = Self {
             events,
             cursor: Cursor::new(resolution),
-            gap_value: (vec![T::default()], (0, 0).into()).into(),
+            gap_value: vec![Default::default()],
             ..Default::default()
         };
         result.sort();
@@ -250,29 +278,22 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         }
     }
 
-    fn event_at_current_position(&mut self) -> Event<Vec<T>> {
-        let mut result: Event<Vec<T>> = (vec![], self.cursor.position).into();
-        while self.increment < self.events.len()
-            && self.cursor.position == self.events[self.increment].position
-        {
-            result.value.push(self.events[self.increment].value.clone());
-            self.increment += 1;
+    fn handle_gaps(&mut self, events: Vec<Event<T>>) -> Vec<Event<T>> {
+        if !events.is_empty() {
+            self.gap_value = events.clone();
         }
 
-        result
-    }
-
-    fn handle_gaps(&mut self, event: Event<Vec<T>>) -> Event<Vec<T>> {
-        if !event.value.is_empty() {
-            self.gap_value = event.clone();
-        }
-
-        self.gap_value.position = self.cursor.position;
-
-        if self.fill_gaps && event.value.is_empty() {
-            self.gap_value.clone()
+        if self.fill_gaps && events.is_empty() {
+            self.gap_value
+                .iter()
+                .cloned()
+                .map(|mut e| {
+                    e.position = self.cursor.position;
+                    e
+                })
+                .collect()
         } else {
-            event
+            events
         }
     }
 }
@@ -318,24 +339,8 @@ impl Default for EventState {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Degree {
-    value: u64,
-    alteration: i64,
-    state: EventState,
-}
-
-impl Degree {
-    pub(crate) fn as_pitch_at_scale(&self, scale: &Scale) -> i64 {
-        let octave_offset = self.value / scale.pitch_set.len() as u64 * 12;
-        (scale.pitch_set[self.value as usize % scale.pitch_set.len()]
-            + octave_offset) as i64
-            + self.alteration
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    Pitch(u64, EventState),
+    Pitch(u64),
     Modulation(String, f64),
 }
 
@@ -348,7 +353,7 @@ impl Value {
     ) -> Value {
         let pitch_offset = degree.as_pitch_at_scale(scale);
         let pitch = ((octave.pitch + root.0) as i64 + pitch_offset).max(0);
-        Value::Pitch(pitch as u64, degree.state)
+        Value::Pitch(pitch as u64)
     }
 }
 
@@ -360,7 +365,22 @@ impl From<Modulation> for Value {
 
 impl Default for Value {
     fn default() -> Self {
-        Value::Pitch(60, EventState::On)
+        Value::Pitch(60)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Degree {
+    value: u64,
+    alteration: i64,
+}
+
+impl Degree {
+    pub(crate) fn as_pitch_at_scale(&self, scale: &Scale) -> i64 {
+        let octave_offset = self.value / scale.pitch_set.len() as u64 * 12;
+        (scale.pitch_set[self.value as usize % scale.pitch_set.len()]
+            + octave_offset) as i64
+            + self.alteration
     }
 }
 
@@ -369,7 +389,6 @@ impl Default for Degree {
         Degree {
             value: 0,
             alteration: 0,
-            state: EventState::On,
         }
     }
 }
@@ -379,7 +398,6 @@ impl From<u64> for Degree {
         Self {
             value,
             alteration: 0,
-            state: EventState::On,
         }
     }
 }
@@ -489,13 +507,13 @@ mod tests {
             2,
         );
 
-        let mut expected: Vec<Event<Vec<u64>>> = vec![
-            (vec![12, 15], (0, 0).into()).into(),
-            (vec![], (0, 1).into()).into(),
-            (vec![21, 17], (1, 0).into()).into(),
-            (vec![], (1, 1).into()).into(),
-            (vec![], (2, 0).into()).into(),
-            (vec![27], (2, 1).into()).into(),
+        let mut expected: Vec<Vec<Event<u64>>> = vec![
+            vec![(12u64, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
+            vec![],
+            vec![(21u64, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
+            vec![],
+            vec![],
+            vec![(27u64, (2, 1).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -522,13 +540,13 @@ mod tests {
 
         stream.fill_gaps = true;
 
-        let mut expected: Vec<Event<Vec<u64>>> = vec![
-            (vec![12, 15], (0, 0).into()).into(),
-            (vec![12, 15], (0, 1).into()).into(),
-            (vec![21, 17], (1, 0).into()).into(),
-            (vec![21, 17], (1, 1).into()).into(),
-            (vec![21, 17], (2, 0).into()).into(),
-            (vec![27], (2, 1).into()).into(),
+        let mut expected: Vec<Vec<Event<u64>>> = vec![
+            vec![(12u64, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
+            vec![(12u64, (0, 1).into()).into(), (15u64, (0, 1).into()).into()],
+            vec![(21u64, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
+            vec![(21u64, (1, 1).into()).into(), (17u64, (1, 1).into()).into()],
+            vec![(21u64, (2, 0).into()).into(), (17u64, (2, 0).into()).into()],
+            vec![(27u64, (2, 1).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -552,13 +570,13 @@ mod tests {
         );
         stream.set_loop(true);
 
-        let expected: Vec<Event<Vec<u64>>> = vec![
-            (vec![15], (0, 0).into()).into(),
-            (vec![], (0, 1).into()).into(),
-            (vec![21], (1, 0).into()).into(),
-            (vec![], (1, 1).into()).into(),
-            (vec![], (2, 0).into()).into(),
-            (vec![27], (2, 1).into()).into(),
+        let mut expected: Vec<Vec<Event<u64>>> = vec![
+            vec![(15u64.into(), (0, 0).into()).into()],
+            vec![],
+            vec![(21u64.into(), (1, 0).into()).into()],
+            vec![],
+            vec![],
+            vec![(27u64.into(), (2, 1).into()).into()],
         ];
 
         for n in 0..expected.len() * 3 {
@@ -577,7 +595,7 @@ mod tests {
 
         for _ in 0..5 {
             assert_eq!(
-                Some(Event::from((vec![0], (0, 0).into()))),
+                Some(vec![(0.into(), (0, 0).into()).into()]),
                 stream.next()
             );
         }
@@ -635,106 +653,111 @@ mod tests {
         let scale = Scale::default();
         let value = Value::new_pitch(&degree, &root, &octave, &scale);
 
-        assert_eq!(Value::Pitch(60, EventState::On), value);
+        assert_eq!(Value::Pitch(60), value);
 
         octave.set_as_octave(0);
         root.0 = 0;
         degree.alteration = -5;
         let value = Value::new_pitch(&degree, &root, &octave, &scale);
-        assert_eq!(Value::Pitch(0, EventState::On), value);
+        assert_eq!(Value::Pitch(0), value);
 
         octave.set_as_octave(4);
         root.0 = 2;
         degree.value = 3;
         degree.alteration = 1;
-        degree.state = EventState::Off;
         let value = Value::new_pitch(&degree, &root, &octave, &scale);
-        assert_eq!(Value::Pitch(54, EventState::Off), value);
+        assert_eq!(Value::Pitch(54), value);
     }
 
     #[test]
-    fn pattern_next() {
-        let mut cursor = Cursor::new(3);
-        // cursor.position = (2, 1).into();
-        let mut pattern = Pattern::new(cursor);
-        pattern
-            .schedule_degree((10.into(), (0, 2).into()).into(), (1, 0).into());
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.3), (1, 0).into()).into(),
-            (1, 0).into(),
-        );
-        pattern
-            .schedule_degree((7.into(), (1, 1).into()).into(), (1, 0).into());
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.13), (2, 1).into()).into(),
-            (1, 0).into(),
-        );
-        pattern
-            .schedule_degree((14.into(), (3, 0).into()).into(), (1, 0).into());
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.67), (3, 0).into()).into(),
-            (1, 0).into(),
+    fn pattern_schedule_event() {
+        let mut pattern = Pattern::default();
+        pattern.schedule_degree(1.into(), (0, 1).into(), (0, 1).into());
+
+        assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
+
+        assert_eq!(
+            vec![Event {
+                value: Value::Pitch(61),
+                position: (0, 1).into(),
+                state: EventState::On,
+            }],
+            pattern.next().unwrap()
         );
 
-        for _ in 0..15 {
-            dbg!(pattern.next());
-        }
+        assert_eq!(
+            vec![Event {
+                value: Value::Pitch(61),
+                position: (0, 2).into(),
+                state: EventState::Off,
+            }],
+            pattern.next().unwrap()
+        );
+
+        assert_eq!(None, pattern.next());
     }
 
-    #[test]
-    fn pattern_mod_pitch_polyrithm() {
-        let mut cursor = Cursor::new(2);
-        // cursor.position = (2, 1).into();
-        let mut pattern = Pattern::new(cursor);
-        pattern
-            .schedule_degree((0.into(), (0, 0).into()).into(), (1, 0).into());
-        pattern.schedule_degree(
-            (
-                Degree {
-                    value: 0,
-                    alteration: 0,
-                    state: EventState::Off,
-                },
-                (1, 0).into(),
-            )
-                .into(),
-            (1, 0).into(),
-        );
+    // #[test]
+    // fn pattern_next() {
+    //     let mut cursor = Cursor::new(3);
+    //     // cursor.position = (2, 1).into();
+    //     let mut pattern = Pattern::new(cursor);
+    //     pattern.schedule_degree(10.into(), (0, 2).into(), (1, 0).into());
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.3),
+    //         (1, 0).into(),
+    //         (1, 0).into(),
+    //     );
+    //     pattern.schedule_degree(7.into(), (1, 1).into(), (1, 0).into());
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.13),
+    //         (2, 1).into(),
+    //         (1, 0).into(),
+    //     );
+    //     pattern.schedule_degree(14.into(), (3, 0).into(), (1, 0).into());
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.67),
+    //         (3, 0).into(),
+    //         (1, 0).into(),
+    //     );
 
-        pattern
-            .schedule_degree((1.into(), (1, 0).into()).into(), (1, 0).into());
-        pattern.schedule_degree(
-            (
-                Degree {
-                    value: 1,
-                    alteration: 0,
-                    state: EventState::Off,
-                },
-                (2, 0).into(),
-            )
-                .into(),
-            (1, 0).into(),
-        );
+    //     for _ in 0..15 {
+    //         dbg!(pattern.next());
+    //     }
+    // }
 
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.1), (0, 0).into()).into(),
-            (1, 0).into(),
-        );
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.2), (1, 0).into()).into(),
-            (1, 0).into(),
-        );
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.3), (2, 0).into()).into(),
-            (1, 0).into(),
-        );
-        pattern.schedule_modulation(
-            (Modulation::new("v", 0.4), (3, 0).into()).into(),
-            (1, 0).into(),
-        );
+    // #[test]
+    // fn pattern_mod_pitch_polyrithm() {
+    //     let mut cursor = Cursor::new(2);
+    //     // cursor.position = (2, 1).into();
+    //     let mut pattern = Pattern::new(cursor);
+    //     pattern.schedule_degree(0.into(), (0, 0).into(), (1, 0).into());
 
-        for _ in 0..15 {
-            dbg!(pattern.next());
-        }
-    }
+    //     pattern.schedule_degree(1.into(), (1, 0).into(), (1, 0).into());
+
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.1),
+    //         (0, 0).into(),
+    //         (1, 0).into(),
+    //     );
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.2),
+    //         (1, 0).into(),
+    //         (1, 0).into(),
+    //     );
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.3),
+    //         (2, 0).into(),
+    //         (1, 0).into(),
+    //     );
+    //     pattern.schedule_modulation(
+    //         Modulation::new("v", 0.4),
+    //         (3, 0).into(),
+    //         (1, 0).into(),
+    //     );
+
+    //     for _ in 0..15 {
+    //         dbg!(pattern.next());
+    //     }
+    // }
 }

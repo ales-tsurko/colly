@@ -86,6 +86,8 @@ pub struct CursorPosition {
     tick: u64,
 }
 
+pub type Duration = CursorPosition;
+
 impl CursorPosition {
     pub fn from_relative_position(position: f64, resolution: u64) -> Self {
         let beat = position as u64;
