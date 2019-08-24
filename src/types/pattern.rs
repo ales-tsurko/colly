@@ -27,11 +27,10 @@ macro_rules! impl_schedule_method {
     pub(crate) fn $name(
         &mut self,
         value: $e_type,
-        position: CursorPosition,
+        mut position: CursorPosition,
         duration: Duration,
     ) {
-        let mut cursor = self.cursor.clone();
-        cursor.position = position;
+        let off_position = position.add_position(duration, self.cursor.resolution()).sub_position((0,1).into(), self.cursor.resolution());
 
         self.$field.add_event(Event {
             value: value.clone(),
@@ -41,7 +40,7 @@ macro_rules! impl_schedule_method {
 
         self.$field.add_event(Event {
             value,
-            position: cursor + duration,
+            position: off_position,
             state: EventState::Off,
         });
     }
@@ -52,11 +51,11 @@ impl Pattern {
     /// To schedule pattern set needed position to the passed cursor.
     pub fn new(cursor: Cursor) -> Self {
         let mut result = Self {
-            degree: EventStream::new(vec![], cursor.get_resolution()),
-            scale: EventStream::new(vec![], cursor.get_resolution()),
-            root: EventStream::new(vec![], cursor.get_resolution()),
-            octave: EventStream::new(vec![], cursor.get_resolution()),
-            modulation: EventStream::new(vec![], cursor.get_resolution()),
+            degree: EventStream::new(vec![], cursor.resolution()),
+            scale: EventStream::new(vec![], cursor.resolution()),
+            root: EventStream::new(vec![], cursor.resolution()),
+            octave: EventStream::new(vec![], cursor.resolution()),
+            modulation: EventStream::new(vec![], cursor.resolution()),
             start_position: cursor.position,
             cursor,
             is_loop: false,
@@ -99,19 +98,23 @@ impl Pattern {
     fn next_degree_and_modulation(
         &mut self,
     ) -> Option<(Vec<Event<Degree>>, Vec<Event<Modulation>>)> {
-        let degree = self.degree.next();
-        let modulation = self.modulation.next();
+        let mut degree = self.degree.next();
+        let mut modulation = self.modulation.next();
 
         if degree.is_none() && modulation.is_none() {
             return None;
         }
-        
-        if degree.is_none() {
-            self.degree.reset();
-        }
-        
-        if modulation.is_none() {
-            self.modulation.reset();
+
+        if self.cursor.position.tick() == 0 {
+            if degree.is_none() {
+                self.degree.reset();
+                degree = self.degree.next();
+            }
+
+            if modulation.is_none() {
+                self.modulation.reset();
+                modulation = self.modulation.next();
+            }
         }
 
         Some((degree.unwrap_or_default(), modulation.unwrap_or_default()))
@@ -508,12 +511,12 @@ mod tests {
         );
 
         let mut expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(12u64, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
+            vec![(12, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
             vec![],
-            vec![(21u64, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
+            vec![(21, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
             vec![],
             vec![],
-            vec![(27u64, (2, 1).into()).into()],
+            vec![(27, (2, 1).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -541,12 +544,12 @@ mod tests {
         stream.fill_gaps = true;
 
         let mut expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(12u64, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
-            vec![(12u64, (0, 1).into()).into(), (15u64, (0, 1).into()).into()],
-            vec![(21u64, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
-            vec![(21u64, (1, 1).into()).into(), (17u64, (1, 1).into()).into()],
-            vec![(21u64, (2, 0).into()).into(), (17u64, (2, 0).into()).into()],
-            vec![(27u64, (2, 1).into()).into()],
+            vec![(12, (0, 0).into()).into(), (15, (0, 0).into()).into()],
+            vec![(12, (0, 1).into()).into(), (15, (0, 1).into()).into()],
+            vec![(21, (1, 0).into()).into(), (17, (1, 0).into()).into()],
+            vec![(21, (1, 1).into()).into(), (17, (1, 1).into()).into()],
+            vec![(21, (2, 0).into()).into(), (17, (2, 0).into()).into()],
+            vec![(27, (2, 1).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -570,13 +573,13 @@ mod tests {
         );
         stream.set_loop(true);
 
-        let mut expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(15u64.into(), (0, 0).into()).into()],
+        let expected: Vec<Vec<Event<u64>>> = vec![
+            vec![(15, (0, 0).into()).into()],
             vec![],
-            vec![(21u64.into(), (1, 0).into()).into()],
+            vec![(21, (1, 0).into()).into()],
             vec![],
             vec![],
-            vec![(27u64.into(), (2, 1).into()).into()],
+            vec![(27, (2, 1).into()).into()],
         ];
 
         for n in 0..expected.len() * 3 {
@@ -594,10 +597,7 @@ mod tests {
         stream.set_loop(true);
 
         for _ in 0..5 {
-            assert_eq!(
-                Some(vec![(0.into(), (0, 0).into()).into()]),
-                stream.next()
-            );
+            assert_eq!(Some(vec![(0, (0, 0).into()).into()]), stream.next());
         }
     }
 
@@ -677,20 +677,18 @@ mod tests {
         assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
 
         assert_eq!(
-            vec![Event {
-                value: Value::Pitch(61),
-                position: (0, 1).into(),
-                state: EventState::On,
-            }],
-            pattern.next().unwrap()
-        );
-
-        assert_eq!(
-            vec![Event {
-                value: Value::Pitch(61),
-                position: (0, 2).into(),
-                state: EventState::Off,
-            }],
+            vec![
+                Event {
+                    value: Value::Pitch(61),
+                    position: (0, 1).into(),
+                    state: EventState::On,
+                },
+                Event {
+                    value: Value::Pitch(61),
+                    position: (0, 1).into(),
+                    state: EventState::Off,
+                }
+            ],
             pattern.next().unwrap()
         );
 
@@ -726,38 +724,38 @@ mod tests {
     //     }
     // }
 
-    // #[test]
-    // fn pattern_mod_pitch_polyrithm() {
-    //     let mut cursor = Cursor::new(2);
-    //     // cursor.position = (2, 1).into();
-    //     let mut pattern = Pattern::new(cursor);
-    //     pattern.schedule_degree(0.into(), (0, 0).into(), (1, 0).into());
+    #[test]
+    fn pattern_mod_pitch_polyrithm() {
+        let mut cursor = Cursor::new(2);
+        // cursor.position = (2, 1).into();
+        let mut pattern = Pattern::new(cursor);
+        pattern.schedule_degree(0.into(), (0, 0).into(), (1, 0).into());
 
-    //     pattern.schedule_degree(1.into(), (1, 0).into(), (1, 0).into());
+        pattern.schedule_degree(1.into(), (1, 0).into(), (1, 0).into());
 
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.1),
-    //         (0, 0).into(),
-    //         (1, 0).into(),
-    //     );
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.2),
-    //         (1, 0).into(),
-    //         (1, 0).into(),
-    //     );
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.3),
-    //         (2, 0).into(),
-    //         (1, 0).into(),
-    //     );
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.4),
-    //         (3, 0).into(),
-    //         (1, 0).into(),
-    //     );
+        pattern.schedule_modulation(
+            Modulation::new("v", 0.1),
+            (0, 0).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            Modulation::new("v", 0.2),
+            (1, 0).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            Modulation::new("v", 0.3),
+            (2, 0).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            Modulation::new("v", 0.4),
+            (3, 0).into(),
+            (1, 0).into(),
+        );
 
-    //     for _ in 0..15 {
-    //         dbg!(pattern.next());
-    //     }
-    // }
+        for _ in 0..25 {
+            dbg!(pattern.next());
+        }
+    }
 }
