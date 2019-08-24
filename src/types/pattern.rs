@@ -21,9 +21,21 @@ pub struct Pattern {
 
 macro_rules! impl_schedule_method {
     ($name:ident, $field:ident, $e_type:ty) => {
-            pub(crate) fn $name(&mut self, event: $e_type) {
-                self.$field.add_event(event);
-            }
+            /// Events is scheduled at relative to the pattern position
+            /// i.e. the first event's position is (0, 0) and it's
+            /// independent of cursor's position.
+    pub(crate) fn $name(
+        &mut self,
+        event: Event<$e_type>,
+        duration: CursorPosition,
+    ) {
+        let mut cursor = self.cursor.clone();
+        cursor.position = event.position;
+        let mut off_event = event.clone();
+        off_event.position = cursor + duration;
+        self.$field.add_event(event);
+        self.$field.add_event(off_event);
+    }
     };
 }
 
@@ -31,26 +43,11 @@ impl Pattern {
     /// To schedule pattern set needed position to the passed cursor.
     pub fn new(cursor: Cursor) -> Self {
         let mut result = Self {
-            degree: EventStream::new(
-                vec![Default::default()],
-                cursor.get_resolution(),
-            ),
-            scale: EventStream::new(
-                vec![Default::default()],
-                cursor.get_resolution(),
-            ),
-            root: EventStream::new(
-                vec![Default::default()],
-                cursor.get_resolution(),
-            ),
-            octave: EventStream::new(
-                vec![Default::default()],
-                cursor.get_resolution(),
-            ),
-            modulation: EventStream::new(
-                vec![Default::default()],
-                cursor.get_resolution(),
-            ),
+            degree: EventStream::new(vec![], cursor.get_resolution()),
+            scale: EventStream::new(vec![], cursor.get_resolution()),
+            root: EventStream::new(vec![], cursor.get_resolution()),
+            octave: EventStream::new(vec![], cursor.get_resolution()),
+            modulation: EventStream::new(vec![], cursor.get_resolution()),
             start_position: cursor.position,
             cursor,
             is_loop: false,
@@ -145,18 +142,19 @@ impl Pattern {
             .collect()
     }
 
-    impl_schedule_method!(schedule_degree, degree, Event<Degree>);
-    impl_schedule_method!(schedule_scale, scale, Event<Scale>);
-    impl_schedule_method!(schedule_root, root, Event<Root>);
-    impl_schedule_method!(schedule_octave, octave, Event<Octave>);
-    impl_schedule_method!(schedule_modulation, modulation, Event<Modulation>);
+    impl_schedule_method!(schedule_degree, degree, Degree);
+    impl_schedule_method!(schedule_scale, scale, Scale);
+    impl_schedule_method!(schedule_root, root, Root);
+    impl_schedule_method!(schedule_octave, octave, Octave);
+    impl_schedule_method!(schedule_modulation, modulation, Modulation);
 }
 
 impl Iterator for Pattern {
     type Item = Event<Vec<Value>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let position = self.cursor.next().unwrap();
+        let position = self.cursor.position;
+        self.cursor.next();
 
         self.next_degree_and_modulation()
             .map(|(degree, modulation)| {
@@ -164,7 +162,7 @@ impl Iterator for Pattern {
                     modulation.value.into_iter().map(Value::from).collect();
                 modulations.append(&mut self.next_pitches(degree));
 
-                Event::new(modulations, position)
+                Event::new(modulations, position, EventState::On)
             })
     }
 }
@@ -179,10 +177,10 @@ pub struct EventStream<T: Clone + Debug + Default> {
     is_loop: bool,
     /// If this field is set to `true` the EventStream::next will return
     /// a value even if there is no one at the position.
-    /// It will either return a previous value or default 
+    /// It will either return a previous value or default
     /// if there were previously no any.
     pub fill_gaps: bool,
-    gap_value: Event<Vec<T>>
+    gap_value: Event<Vec<T>>,
 }
 
 impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
@@ -284,11 +282,16 @@ impl<T: Clone + Debug + Default> EventStream<T> {
 pub struct Event<V: Clone + Debug + Default> {
     value: V,
     position: CursorPosition,
+    state: EventState,
 }
 
 impl<T: Clone + Debug + Default> Event<T> {
-    pub fn new(value: T, position: CursorPosition) -> Self {
-        Event { value, position }
+    pub fn new(value: T, position: CursorPosition, state: EventState) -> Self {
+        Event {
+            value,
+            position,
+            state,
+        }
     }
 }
 
@@ -297,7 +300,20 @@ impl<T: Clone + Debug + Default> From<(T, CursorPosition)> for Event<T> {
         Event {
             value: value.0,
             position: value.1,
+            state: EventState::On,
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Copy)]
+pub enum EventState {
+    On,
+    Off,
+}
+
+impl Default for EventState {
+    fn default() -> Self {
+        Self::On
     }
 }
 
@@ -346,12 +362,6 @@ impl Default for Value {
     fn default() -> Self {
         Value::Pitch(60, EventState::On)
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Copy)]
-pub enum EventState {
-    On,
-    Off,
 }
 
 impl Default for Degree {
@@ -427,6 +437,15 @@ impl Default for Octave {
 pub(crate) struct Modulation {
     name: String,
     value: f64,
+}
+
+impl Modulation {
+    pub(crate) fn new(name: &str, value: f64) -> Self {
+        Self {
+            name: name.to_string(),
+            value,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -519,7 +538,6 @@ mod tests {
         for _ in 0..expected.len() + 3 {
             assert_eq!(None, stream.next());
         }
-
     }
 
     #[test]
@@ -562,37 +580,6 @@ mod tests {
                 Some(Event::from((vec![0], (0, 0).into()))),
                 stream.next()
             );
-        }
-    }
-
-    #[test]
-    fn pattern_degree_modulation_cycle() {
-        let mut pattern = Pattern::default();
-        pattern.schedule_degree((Degree::default(), (0, 0).into()).into());
-        pattern
-            .schedule_modulation((Modulation::default(), (0, 0).into()).into());
-        pattern.schedule_degree((Degree::default(), (0, 1).into()).into());
-
-        let mut expected: Vec<(Event<Vec<Degree>>, Event<Vec<Modulation>>)> = vec![
-            (
-                (vec![Degree::default()], (0, 0).into()).into(),
-                (vec![Modulation::default()], (0, 0).into()).into(),
-            ),
-            (
-                (vec![Degree::default()], (0, 1).into()).into(),
-                (vec![Modulation::default()], (0, 0).into()).into(),
-            ),
-        ];
-
-        for _ in 0..expected.len() {
-            assert_eq!(
-                Some(expected.remove(0)),
-                pattern.next_degree_and_modulation()
-            );
-        }
-
-        for _ in 0..expected.len() + 3 {
-            assert_eq!(None, pattern.next_degree_and_modulation());
         }
     }
 
@@ -663,5 +650,91 @@ mod tests {
         degree.state = EventState::Off;
         let value = Value::new_pitch(&degree, &root, &octave, &scale);
         assert_eq!(Value::Pitch(54, EventState::Off), value);
+    }
+
+    #[test]
+    fn pattern_next() {
+        let mut cursor = Cursor::new(3);
+        // cursor.position = (2, 1).into();
+        let mut pattern = Pattern::new(cursor);
+        pattern
+            .schedule_degree((10.into(), (0, 2).into()).into(), (1, 0).into());
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.3), (1, 0).into()).into(),
+            (1, 0).into(),
+        );
+        pattern
+            .schedule_degree((7.into(), (1, 1).into()).into(), (1, 0).into());
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.13), (2, 1).into()).into(),
+            (1, 0).into(),
+        );
+        pattern
+            .schedule_degree((14.into(), (3, 0).into()).into(), (1, 0).into());
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.67), (3, 0).into()).into(),
+            (1, 0).into(),
+        );
+
+        for _ in 0..15 {
+            dbg!(pattern.next());
+        }
+    }
+
+    #[test]
+    fn pattern_mod_pitch_polyrithm() {
+        let mut cursor = Cursor::new(2);
+        // cursor.position = (2, 1).into();
+        let mut pattern = Pattern::new(cursor);
+        pattern
+            .schedule_degree((0.into(), (0, 0).into()).into(), (1, 0).into());
+        pattern.schedule_degree(
+            (
+                Degree {
+                    value: 0,
+                    alteration: 0,
+                    state: EventState::Off,
+                },
+                (1, 0).into(),
+            )
+                .into(),
+            (1, 0).into(),
+        );
+
+        pattern
+            .schedule_degree((1.into(), (1, 0).into()).into(), (1, 0).into());
+        pattern.schedule_degree(
+            (
+                Degree {
+                    value: 1,
+                    alteration: 0,
+                    state: EventState::Off,
+                },
+                (2, 0).into(),
+            )
+                .into(),
+            (1, 0).into(),
+        );
+
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.1), (0, 0).into()).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.2), (1, 0).into()).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.3), (2, 0).into()).into(),
+            (1, 0).into(),
+        );
+        pattern.schedule_modulation(
+            (Modulation::new("v", 0.4), (3, 0).into()).into(),
+            (1, 0).into(),
+        );
+
+        for _ in 0..15 {
+            dbg!(pattern.next());
+        }
     }
 }
