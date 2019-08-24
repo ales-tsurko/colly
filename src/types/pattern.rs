@@ -262,6 +262,8 @@ impl<T: Clone + Debug + Default> EventStream<T> {
             self.gap_value = event.clone();
         }
 
+        self.gap_value.position = self.cursor.position;
+
         if self.fill_gaps && event.value.is_empty() {
             self.gap_value.clone()
         } else {
@@ -477,6 +479,40 @@ mod tests {
         for _ in 0..expected.len() + 3 {
             assert_eq!(None, stream.next());
         }
+    }
+
+    #[test]
+    fn event_stream_fill_gaps() {
+        let mut stream = EventStream::new(
+            vec![
+                (27, (2, 1).into()).into(),
+                (12, (0, 0).into()).into(),
+                (21, (1, 0).into()).into(),
+                (15, (0, 0).into()).into(),
+                (17, (1, 0).into()).into(),
+            ],
+            2,
+        );
+
+        stream.fill_gaps = true;
+
+        let mut expected: Vec<Event<Vec<u64>>> = vec![
+            (vec![12, 15], (0, 0).into()).into(),
+            (vec![12, 15], (0, 1).into()).into(),
+            (vec![21, 17], (1, 0).into()).into(),
+            (vec![21, 17], (1, 1).into()).into(),
+            (vec![21, 17], (2, 0).into()).into(),
+            (vec![27], (2, 1).into()).into(),
+        ];
+
+        for _ in 0..expected.len() {
+            assert_eq!(Some(expected.remove(0)), stream.next());
+        }
+
+        for _ in 0..expected.len() + 3 {
+            assert_eq!(None, stream.next());
+        }
+
     }
 
     #[test]
