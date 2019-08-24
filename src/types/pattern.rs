@@ -15,6 +15,7 @@ pub struct Pattern {
     octave: EventStream<Octave>,
     modulation: EventStream<Modulation>,
     cursor: Cursor,
+    start_position: CursorPosition,
     is_loop: bool,
 }
 
@@ -28,7 +29,7 @@ macro_rules! impl_schedule_method {
 
 impl Pattern {
     /// To schedule pattern set needed position to the passed cursor.
-    pub fn new(cursor: &Cursor) -> Self {
+    pub fn new(cursor: Cursor) -> Self {
         let mut result = Self {
             degree: EventStream::new(
                 vec![Default::default()],
@@ -50,7 +51,8 @@ impl Pattern {
                 vec![Default::default()],
                 cursor.get_resolution(),
             ),
-            cursor: cursor.clone(),
+            start_position: cursor.position,
+            cursor,
             is_loop: false,
         };
 
@@ -80,7 +82,7 @@ impl Pattern {
 
     /// Reset patern to start position.
     pub fn reset(&mut self) {
-        self.cursor.position = (0, 0).into();
+        self.cursor.position = self.start_position;
         self.degree.reset();
         self.scale.reset();
         self.root.reset();
