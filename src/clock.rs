@@ -88,17 +88,27 @@ pub struct CursorPosition {
 pub type Duration = CursorPosition;
 
 impl CursorPosition {
-
-    pub fn add_position(&mut self, rhs: CursorPosition, resolution: u64) -> Self {
+    pub fn add_position(
+        &mut self,
+        rhs: CursorPosition,
+        resolution: u64,
+    ) -> Self {
         let current_ticks = self.beat * resolution + self.tick;
         let r_ticks = rhs.beat * resolution + rhs.tick;
         CursorPosition::from_ticks(current_ticks + r_ticks, resolution)
     }
 
-    pub fn sub_position(&mut self, rhs: CursorPosition, resolution: u64) -> Self {
+    pub fn sub_position(
+        &mut self,
+        rhs: CursorPosition,
+        resolution: u64,
+    ) -> Self {
         let current_ticks = self.beat * resolution + self.tick;
         let right_ticks = rhs.beat * resolution + rhs.tick;
-        CursorPosition::from_ticks(current_ticks.saturating_sub(right_ticks), resolution)
+        CursorPosition::from_ticks(
+            current_ticks.saturating_sub(right_ticks),
+            resolution,
+        )
     }
 
     /// Construct new instance from ticks with giveb resolution.
@@ -106,7 +116,7 @@ impl CursorPosition {
         let beat = ticks / resolution;
         Self {
             beat,
-            tick: ticks - (beat * resolution)
+            tick: ticks - (beat * resolution),
         }
     }
 
@@ -217,7 +227,10 @@ mod tests {
 
         let expected = CursorPosition { beat: 13, tick: 5 };
 
-        assert_eq!(expected, cursor.position.add_position(offset, cursor.resolution()));
+        assert_eq!(
+            expected,
+            cursor.position.add_position(offset, cursor.resolution())
+        );
     }
 
     #[test]
@@ -232,8 +245,11 @@ mod tests {
             // resolution is 24, but for battle-like circumstances...
             tick: 73,
         };
-        let expected = CursorPosition { beat: 4, tick: 4};
+        let expected = CursorPosition { beat: 4, tick: 4 };
 
-        assert_eq!(expected, cursor.position.sub_position(offset, cursor.resolution()));
+        assert_eq!(
+            expected,
+            cursor.position.sub_position(offset, cursor.resolution())
+        );
     }
 }

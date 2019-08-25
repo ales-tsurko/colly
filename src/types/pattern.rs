@@ -17,48 +17,52 @@ pub struct Pattern {
     cursor: Cursor,
     start_position: CursorPosition,
     is_loop: bool,
+    is_finished: bool,
 }
 
 macro_rules! impl_schedule_method {
     ($name:ident, $field:ident, $e_type:ty) => {
-            /// Events is scheduled at relative to the pattern position
-            /// i.e. the first event's position is (0, 0) and it's
-            /// independent of cursor's position.
-    pub(crate) fn $name(
-        &mut self,
-        value: $e_type,
-        mut position: CursorPosition,
-        duration: Duration,
-    ) {
-        let off_position = position.add_position(duration, self.cursor.resolution()).sub_position((0,1).into(), self.cursor.resolution());
+        /// Events is scheduled at relative to the pattern position
+        /// i.e. the first event's position is (0, 0) and it's
+        /// independent of cursor's position.
+        pub(crate) fn $name(
+            &mut self,
+            value: $e_type,
+            mut position: CursorPosition,
+            duration: Duration,
+        ) {
+            let off_position = position.add_position(duration, self.cursor.resolution()).sub_position((0,1).into(), self.cursor.resolution());
 
-        self.$field.add_event(Event {
-            value: value.clone(),
-            position,
-            state: EventState::On,
-        });
+            self.$field.add_event(Event {
+                value: value.clone(),
+                position,
+                state: EventState::On,
+            });
 
-        self.$field.add_event(Event {
-            value,
-            position: off_position,
-            state: EventState::Off,
-        });
-    }
+            self.$field.add_event(Event {
+                value,
+                position: off_position,
+                state: EventState::Off,
+            });
+        }
     };
 }
 
 impl Pattern {
     /// To schedule pattern set needed position to the passed cursor.
-    pub fn new(cursor: Cursor) -> Self {
+    pub fn new(mut cursor: Cursor) -> Self {
+        let start_position = cursor.position;
+        cursor.position = (0, 0).into();
         let mut result = Self {
             degree: EventStream::new(vec![], cursor.resolution()),
             scale: EventStream::new(vec![], cursor.resolution()),
             root: EventStream::new(vec![], cursor.resolution()),
             octave: EventStream::new(vec![], cursor.resolution()),
             modulation: EventStream::new(vec![], cursor.resolution()),
-            start_position: cursor.position,
+            start_position,
             cursor,
             is_loop: false,
+            is_finished: false,
         };
 
         result.scale.is_loop = true;
@@ -87,12 +91,16 @@ impl Pattern {
 
     /// Reset patern to start position.
     pub fn reset(&mut self) {
-        self.cursor.position = self.start_position;
+        self.cursor.position = (0, 0).into();
         self.degree.reset();
         self.scale.reset();
         self.root.reset();
         self.octave.reset();
         self.modulation.reset();
+    }
+
+    pub fn start_position(&self) -> CursorPosition {
+        self.start_position
     }
 
     fn next_degree_and_modulation(
@@ -102,6 +110,12 @@ impl Pattern {
         let mut modulation = self.modulation.next();
 
         if degree.is_none() && modulation.is_none() {
+            // return the rest of the beat
+            if !self.is_finished && self.cursor.position.tick() != 0 {
+                return Some((Vec::new(), Vec::new()));
+            }
+
+            self.is_finished = true;
             return None;
         }
 
@@ -695,67 +709,114 @@ mod tests {
         assert_eq!(None, pattern.next());
     }
 
-    // #[test]
-    // fn pattern_next() {
-    //     let mut cursor = Cursor::new(3);
-    //     // cursor.position = (2, 1).into();
-    //     let mut pattern = Pattern::new(cursor);
-    //     pattern.schedule_degree(10.into(), (0, 2).into(), (1, 0).into());
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.3),
-    //         (1, 0).into(),
-    //         (1, 0).into(),
-    //     );
-    //     pattern.schedule_degree(7.into(), (1, 1).into(), (1, 0).into());
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.13),
-    //         (2, 1).into(),
-    //         (1, 0).into(),
-    //     );
-    //     pattern.schedule_degree(14.into(), (3, 0).into(), (1, 0).into());
-    //     pattern.schedule_modulation(
-    //         Modulation::new("v", 0.67),
-    //         (3, 0).into(),
-    //         (1, 0).into(),
-    //     );
-
-    //     for _ in 0..15 {
-    //         dbg!(pattern.next());
-    //     }
-    // }
-
     #[test]
-    fn pattern_mod_pitch_polyrithm() {
-        let mut cursor = Cursor::new(2);
-        // cursor.position = (2, 1).into();
+    fn pattern_next_polyrithmic() {
+        let mut cursor = Cursor::new(6);
+        cursor.position = (2, 1).into();
         let mut pattern = Pattern::new(cursor);
-        pattern.schedule_degree(0.into(), (0, 0).into(), (1, 0).into());
+        pattern.schedule_degree(0.into(), (0, 0).into(), (0, 2).into());
 
-        pattern.schedule_degree(1.into(), (1, 0).into(), (1, 0).into());
+        pattern.schedule_degree(1.into(), (1, 0).into(), (0, 4).into());
 
         pattern.schedule_modulation(
             Modulation::new("v", 0.1),
             (0, 0).into(),
-            (1, 0).into(),
+            (0, 3).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.2),
             (1, 0).into(),
-            (1, 0).into(),
+            (0, 3).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.3),
             (2, 0).into(),
-            (1, 0).into(),
+            (0, 3).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.4),
             (3, 0).into(),
-            (1, 0).into(),
+            (0, 3).into(),
         );
 
-        for _ in 0..25 {
-            dbg!(pattern.next());
+        let mut expected: Vec<Vec<Event<Value>>> = vec![
+            vec![
+                Event::new(
+                    Value::Modulation("v".to_string(), 0.1),
+                    (0, 0).into(),
+                    EventState::On,
+                ),
+                Event::new(Value::Pitch(60), (0, 0).into(), EventState::On),
+            ],
+            vec![Event::new(Value::Pitch(60), (0, 1).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Modulation("v".to_string(), 0.1),
+                (0, 2).into(),
+                EventState::Off,
+            )],
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                Event::new(
+                    Value::Modulation("v".to_string(), 0.2),
+                    (1, 0).into(),
+                    EventState::On,
+                ),
+                Event::new(Value::Pitch(61), (1, 0).into(), EventState::On),
+            ],
+            vec![],
+            vec![Event::new(
+                Value::Modulation("v".to_string(), 0.2),
+                (1, 2).into(),
+                EventState::Off,
+            )],
+            vec![Event::new(Value::Pitch(61), (1, 3).into(), EventState::Off)],
+            vec![],
+            vec![],
+            vec![
+                Event::new(
+                    Value::Modulation("v".to_string(), 0.3),
+                    (2, 0).into(),
+                    EventState::On,
+                ),
+                Event::new(Value::Pitch(60), (2, 0).into(), EventState::On),
+            ],
+            vec![Event::new(Value::Pitch(60), (2, 1).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Modulation("v".to_string(), 0.3),
+                (2, 2).into(),
+                EventState::Off,
+            )],
+            vec![],
+            vec![],
+            vec![],
+            vec![
+                Event::new(
+                    Value::Modulation("v".to_string(), 0.4),
+                    (3, 0).into(),
+                    EventState::On,
+                ),
+                Event::new(Value::Pitch(61), (3, 0).into(), EventState::On),
+            ],
+            vec![],
+            vec![Event::new(
+                Value::Modulation("v".to_string(), 0.4),
+                (3, 2).into(),
+                EventState::Off,
+            )],
+            vec![Event::new(Value::Pitch(61), (3, 3).into(), EventState::Off)],
+            vec![],
+            vec![],
+            // vec![],
+        ];
+
+        for _ in 0..expected.len() {
+            assert_eq!(expected.remove(0), pattern.next().unwrap());
+        }
+
+        for _ in 0..3 {
+            assert_eq!(None, pattern.next());
         }
     }
 }
