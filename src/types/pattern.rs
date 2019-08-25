@@ -685,7 +685,7 @@ mod tests {
 
     #[test]
     fn pattern_schedule_event() {
-        let mut pattern = Pattern::default();
+        let mut pattern = Pattern::new(Cursor::new(3));
         pattern.schedule_degree(1.into(), (0, 1).into(), (0, 1).into());
 
         assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
@@ -701,10 +701,12 @@ mod tests {
                     value: Value::Pitch(61),
                     position: (0, 1).into(),
                     state: EventState::Off,
-                }
+                },
             ],
             pattern.next().unwrap()
         );
+
+        assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
 
         assert_eq!(None, pattern.next());
     }
