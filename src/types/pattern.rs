@@ -25,13 +25,15 @@ macro_rules! impl_schedule_method {
         /// Events is scheduled at relative to the pattern position
         /// i.e. the first event's position is (0, 0) and it's
         /// independent of cursor's position.
-        pub(crate) fn $name(
+        pub fn $name(
             &mut self,
             value: $e_type,
             mut position: CursorPosition,
             duration: Duration,
         ) {
-            let off_position = position.add_position(duration, self.cursor.resolution()).sub_position((0,1).into(), self.cursor.resolution());
+            let off_position = position
+                .add_position(duration, self.cursor.resolution())
+                .sub_position((0,1).into(), self.cursor.resolution());
 
             self.$field.add_event(Event {
                 value: value.clone(),
@@ -362,7 +364,7 @@ pub enum Value {
 }
 
 impl Value {
-    pub(crate) fn new_pitch(
+    pub fn new_pitch(
         degree: &Degree,
         root: &Root,
         octave: &Octave,
@@ -387,13 +389,13 @@ impl Default for Value {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Degree {
+pub struct Degree {
     value: u64,
     alteration: i64,
 }
 
 impl Degree {
-    pub(crate) fn as_pitch_at_scale(&self, scale: &Scale) -> i64 {
+    pub fn as_pitch_at_scale(&self, scale: &Scale) -> i64 {
         let octave_offset = self.value / scale.pitch_set.len() as u64 * 12;
         (scale.pitch_set[self.value as usize % scale.pitch_set.len()]
             + octave_offset) as i64
@@ -420,44 +422,44 @@ impl From<u64> for Degree {
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub(crate) struct Root(pub(crate) u64);
+pub struct Root(pub u64);
 
 #[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Octave {
+pub struct Octave {
     pitch: u64,
     octave: u64,
 }
 
 impl Octave {
-    pub(crate) fn with_octave(octave: u64) -> Self {
+    pub fn with_octave(octave: u64) -> Self {
         Self {
             pitch: octave * 12,
             octave,
         }
     }
 
-    pub(crate) fn with_pitch(pitch: u64) -> Self {
+    pub fn with_pitch(pitch: u64) -> Self {
         Self {
             pitch,
             octave: pitch / 12,
         }
     }
 
-    pub(crate) fn set_as_octave(&mut self, value: u64) {
+    pub fn set_as_octave(&mut self, value: u64) {
         self.pitch = 12 * value;
         self.octave = value;
     }
 
-    pub(crate) fn set_as_pitch(&mut self, value: u64) {
+    pub fn set_as_pitch(&mut self, value: u64) {
         self.octave = value / 12;
         self.pitch = self.octave * 12;
     }
 
-    pub(crate) fn get_octave_number(&self) -> u64 {
+    pub fn get_octave_number(&self) -> u64 {
         self.octave
     }
 
-    pub(crate) fn get_pitch(&self) -> u64 {
+    pub fn get_pitch(&self) -> u64 {
         self.pitch
     }
 }
@@ -469,13 +471,13 @@ impl Default for Octave {
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub(crate) struct Modulation {
+pub struct Modulation {
     name: String,
     value: f64,
 }
 
 impl Modulation {
-    pub(crate) fn new(name: &str, value: f64) -> Self {
+    pub fn new(name: &str, value: f64) -> Self {
         Self {
             name: name.to_string(),
             value,
@@ -484,13 +486,13 @@ impl Modulation {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
-pub(crate) struct Scale {
-    pub(crate) name: String,
-    pub(crate) pitch_set: Vec<u64>,
+pub struct Scale {
+    pub name: String,
+    pub pitch_set: Vec<u64>,
 }
 
 impl Scale {
-    pub(crate) fn new(name: &str, pitch_set: &Vec<u64>) -> Self {
+    pub fn new(name: &str, pitch_set: &Vec<u64>) -> Self {
         Scale {
             name: name.to_string(),
             pitch_set: pitch_set.clone(),
