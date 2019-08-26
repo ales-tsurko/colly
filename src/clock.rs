@@ -24,6 +24,10 @@ impl Clock {
         self.tempo
     }
 
+    pub fn cursor(&self) -> &Cursor {
+        &self.cursor
+    }
+
     //TODO:
     // pub fn tick_interval(&self)
 }
