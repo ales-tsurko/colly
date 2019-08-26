@@ -319,7 +319,7 @@ fn test_parse_property_value() {
         CollyParser::parse_source_for_rule("||", Rule::PropertyValue);
     let expected = PropertyValue::PatternExpression(PatternExpression {
         pattern: Pattern(Vec::new()),
-        inner_method: None,
+        pattern_macro: None,
         methods: Vec::new(),
         properties: None,
     });
@@ -502,7 +502,7 @@ fn test_parse_pattern_expression() {
         CollyParser::parse_source_for_rule("|| hello", Rule::PatternExpression);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        inner_method: Some(FunctionExpression::Function(FunctionCall {
+        pattern_macro: Some(FunctionExpression::Function(FunctionCall {
             identifier: Identifier("hello".into()),
             parameters: Vec::new(),
         })),
@@ -519,7 +519,7 @@ fn test_parse_pattern_expression() {
         );
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        inner_method: None,
+        pattern_macro: None,
         methods: vec![FunctionExpression::Function(FunctionCall {
             identifier: Identifier("world".into()),
             parameters: Vec::new(),
@@ -542,7 +542,7 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        inner_method: None,
+        pattern_macro: None,
         methods: Vec::new(),
         properties: Some(properties),
     };
@@ -562,7 +562,7 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        inner_method: Some(FunctionExpression::Function(FunctionCall {
+        pattern_macro: Some(FunctionExpression::Function(FunctionCall {
             identifier: Identifier("hello".into()),
             parameters: Vec::new(),
         })),
@@ -586,19 +586,19 @@ fn test_parse_pattern_expression_list() {
     let expected = PatternSuperExpression::ExpressionList(vec![
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            inner_method: None,
+            pattern_macro: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            inner_method: None,
+            pattern_macro: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            inner_method: None,
+            pattern_macro: None,
             methods: Vec::new(),
             properties: None,
         },
@@ -642,7 +642,7 @@ fn test_pattern_assignment() {
         assignee: Expression::PatternSlot((11, 12)),
         assignment: PatternSuperExpression::Expression(PatternExpression {
             pattern: Pattern(Vec::new()),
-            inner_method: None,
+            pattern_macro: None,
             methods: Vec::new(),
             properties: None,
         }),

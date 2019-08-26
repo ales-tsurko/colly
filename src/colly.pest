@@ -63,8 +63,8 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 PatternAssignment = { PatternSlot ~ PatternSuperExpression }
 PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
-PatternExpression = { Pattern ~ PatternInnerMethod? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
-PatternInnerMethod = { FunctionExpression }
+PatternExpression = { Pattern ~ PatternMacro? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
+PatternMacro = { FunctionExpression }
 Pattern = { "|" ~ BeatEvent* ~  "|" }
 BeatEvent = ${ Event+ }
 Event = { EventMethod | Group | Chord | ParenthesisedEventGroup }
@@ -78,10 +78,10 @@ PatternAtom = {
     | Pitch
     | Pause
     | Modulation
-    | PatternInput }
+    | MacroTarget }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
-PatternInput = { "%" }
+MacroTarget = { "%" }
 Octave = { "o" | "O" }
 Alteration = { "+" | "-" }
 EventMethod = { "_" | "." | "*" | ":" }

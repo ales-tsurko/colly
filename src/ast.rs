@@ -498,7 +498,7 @@ impl PatternSuperExpression {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PatternExpression {
     pub pattern: Pattern,
-    pub inner_method: Option<FunctionExpression>,
+    pub pattern_macro: Option<FunctionExpression>,
     pub methods: Vec<FunctionExpression>,
     pub properties: Option<Properties>,
 }
@@ -514,7 +514,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternExpression {
         for pair in inner {
             match pair.as_rule() {
                 Rule::Pattern => result.parse_pattern(pair)?,
-                Rule::PatternInnerMethod => result.parse_inner_method(pair)?,
+                Rule::PatternMacro => result.parse_pattern_macro(pair)?,
                 Rule::FunctionExpression => result.parse_method(pair)?,
                 Rule::Properties => result.parse_properties(pair)?,
                 _ => CollyParser::rule_error(&pair)?,
@@ -531,9 +531,9 @@ impl PatternExpression {
         Ok(())
     }
 
-    fn parse_inner_method(&mut self, pair: Pair<'_, Rule>) -> ParseResult<()> {
+    fn parse_pattern_macro(&mut self, pair: Pair<'_, Rule>) -> ParseResult<()> {
         let inner = CollyParser::first_inner_for_pair(pair)?;
-        self.inner_method = Some(inner.try_into()?);
+        self.pattern_macro = Some(inner.try_into()?);
         Ok(())
     }
 
@@ -675,7 +675,7 @@ pub enum PatternAtom {
     Alteration(Alteration),
     Pitch(u64),
     Pause,
-    PatternInput,
+    MacroTarget,
     Modulation(Modulation),
 }
 
@@ -693,7 +693,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
             Rule::Alteration => Ok(PatternAtom::Alteration(inner.try_into()?)),
             Rule::Pitch => Self::from_pitch(inner),
             Rule::Pause => Ok(PatternAtom::Pause),
-            Rule::PatternInput => Ok(PatternAtom::PatternInput),
+            Rule::MacroTarget => Ok(PatternAtom::MacroTarget),
             Rule::Modulation => Ok(PatternAtom::Modulation(inner.try_into()?)),
             _ => CollyParser::rule_error(&inner),
         }
