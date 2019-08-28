@@ -153,7 +153,6 @@ impl Interpreter<types::Pattern> for ast::Pattern {
     }
 }
 
-//
 trait Node {
     fn beat(&self) -> usize;
 
@@ -185,13 +184,15 @@ impl<'a> Node for BeatEventInterpreter<'a> {
 impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
     fn interpret(mut self, context: &mut Context<'_>) -> InterpreterResult<()> {
         for (n, event) in self.clone().beat_event.0.into_iter().enumerate() {
-                EventInterpreter {
-                    depth: self.depth(),
-                    event,
-                    beat: n,
-                    pattern: &mut self.pattern,
-                }
-                .interpret(context)?;
+            EventInterpreter {
+                depth: self.depth(),
+                event,
+                beat: n,
+                pattern: &mut self.pattern,
+                octave_change: None,
+                alteration: None,
+            }
+            .interpret(context)?;
         }
 
         Ok(())
@@ -204,6 +205,8 @@ struct EventInterpreter<'a> {
     event: ast::Event,
     beat: usize,
     pattern: &'a types::Pattern,
+    octave_change: Option<i64>,
+    alteration: Option<i64>,
 }
 
 impl<'a> Node for EventInterpreter<'a> {
@@ -229,10 +232,48 @@ impl<'a> Interpreter<()> for EventInterpreter<'a> {
 
 impl<'a> EventInterpreter<'a> {
     fn interpret_group(
-        self,
+        mut self,
         atoms: Vec<ast::PatternAtom>,
         context: &Context<'_>,
     ) -> InterpreterResult<()> {
+        let count_audible = atoms
+            .iter()
+            .filter(|atom| match atom {
+                ast::PatternAtom::EventMethod(_)
+                | ast::PatternAtom::Octave(_)
+                | ast::PatternAtom::Alteration(_) => false,
+                _ => true,
+            })
+            .count();
+        
+        for atom in atoms.into_iter() {
+            self.interpret_atom(atom, context)?;
+        }
+
+        Ok(())
+    }
+
+    fn interpret_atom(
+        &mut self,
+        atom: ast::PatternAtom,
+        context: &Context<'_>,
+    ) -> InterpreterResult<()> {
+        match atom {
+            ast::PatternAtom::EventMethod(method) => unimplemented!(),
+            ast::PatternAtom::Octave(octave) => Ok(self.interpret_octave_change(octave)),
+            ast::PatternAtom::Alteration(alteration) => unimplemented!(),
+            ast::PatternAtom::Pitch(pitch) => unimplemented!(),
+            ast::PatternAtom::Pause => unimplemented!(),
+            ast::PatternAtom::MacroTarget => unimplemented!(),
+            ast::PatternAtom::Modulation(modulation) => unimplemented!(),
+        }
+    }
+
+    fn interpret_octave_change(&mut self, octave: ast::Octave) {
+        // match octave {
+        //     ast::Octave::Up => self.octave_change += 1,
+        //     ast::Octave::Down => self.octave_change -= 1,
+        // }
         unimplemented!()
     }
 }

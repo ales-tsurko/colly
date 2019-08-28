@@ -1,6 +1,5 @@
 use super::*;
 use crate::parser::{CollyParser, Rule};
-use pest::Parser;
 
 #[test]
 fn interpret_pattern_complex() {
