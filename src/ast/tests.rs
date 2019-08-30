@@ -94,7 +94,7 @@ fn test_parse_track() {
 #[test]
 fn test_parse_pattern_slot() {
     let result: ParseResult<Expression> =
-        CollyParser::parse_source_for_rule("$0.1", Rule::Expression);
+        CollyParser::parse_source_for_rule("$0@1", Rule::Expression);
     assert_eq!(Expression::PatternSlot((0, 1)), result.unwrap());
 }
 
@@ -216,7 +216,7 @@ fn test_parse_function_list() {
 
 #[test]
 fn test_parse_array() {
-    let ast: Ast = "[foo, 1, true, \"hello\", [1, 2], $16.19, 1.234]"
+    let ast: Ast = "[foo, 1, true, \"hello\", [1, 2], $16@19, 1.234]"
         .parse()
         .unwrap();
     let expected = vec![Statement::SuperExpression(
@@ -388,7 +388,7 @@ fn test_parse_variable_assignment() {
 #[test]
 fn test_parse_properties_assignment() {
     let result: ParseResult<Assignment> = CollyParser::parse_source_for_rule(
-        "$11.12 {foo: true}",
+        "$11@12 {foo: true}",
         Rule::AssignStatement,
     );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
@@ -637,7 +637,7 @@ fn test_parse_modulation_atom() {
 #[test]
 fn test_pattern_assignment() {
     let result: ParseResult<Assignment> =
-        CollyParser::parse_source_for_rule("$11.12 ||", Rule::AssignStatement);
+        CollyParser::parse_source_for_rule("$11@12 ||", Rule::AssignStatement);
     let expected = Assignment::Pattern {
         assignee: Expression::PatternSlot((11, 12)),
         assignment: PatternSuperExpression::Expression(PatternExpression {
