@@ -2,7 +2,7 @@
 mod tests;
 
 use crate::ast;
-use crate::clock::Clock;
+use crate::clock::{ Clock, CursorPosition };
 use crate::types::{self, Function, Identifier, Mixer, Value};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -139,12 +139,14 @@ impl Interpreter<types::Pattern> for ast::Pattern {
     ) -> InterpreterResult<types::Pattern> {
         let mut pattern =
             types::Pattern::new(context.mixer.clock.cursor().clone());
+        let mut octave = types::Octave::default();
         for (beat, beat_event) in self.0.into_iter().enumerate() {
             let mut beat_event_interpreter = BeatEventInterpreter {
                 depth: 0,
                 beat,
                 beat_event,
                 pattern: &pattern,
+                octave: &octave,
             };
             beat_event_interpreter.interpret(context)?;
         }
@@ -169,6 +171,7 @@ struct BeatEventInterpreter<'a> {
     beat_event: ast::BeatEvent,
     beat: usize,
     pattern: &'a types::Pattern,
+    octave: &'a types::Octave,
 }
 
 impl<'a> Node for BeatEventInterpreter<'a> {
@@ -189,6 +192,7 @@ impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
                 event,
                 beat: n,
                 pattern: &mut self.pattern,
+                octave: &mut self.octave,
                 octave_change: None,
                 alteration: None,
             }
@@ -205,7 +209,8 @@ struct EventInterpreter<'a> {
     event: ast::Event,
     beat: usize,
     pattern: &'a types::Pattern,
-    octave_change: Option<i64>,
+    octave: &'a types::Octave,
+    octave_change: Option<types::Octave>,
     alteration: Option<i64>,
 }
 
@@ -236,7 +241,7 @@ impl<'a> EventInterpreter<'a> {
         atoms: Vec<ast::PatternAtom>,
         context: &Context<'_>,
     ) -> InterpreterResult<()> {
-        let count_audible = atoms
+        let event_size = atoms
             .iter()
             .filter(|atom| match atom {
                 ast::PatternAtom::EventMethod(_)
@@ -245,24 +250,32 @@ impl<'a> EventInterpreter<'a> {
                 _ => true,
             })
             .count();
-        
+        let mut position = CursorPosition::from((self.beat as u64, 0));
+
         for atom in atoms.into_iter() {
-            self.interpret_atom(atom, context)?;
+            self.interpret_atom(atom, event_size, &mut position, context)?;
         }
 
         Ok(())
     }
 
+    #[allow(clippy::unit_arg)]
     fn interpret_atom(
         &mut self,
         atom: ast::PatternAtom,
+        event_size: usize,
+        position: &mut CursorPosition,
         context: &Context<'_>,
     ) -> InterpreterResult<()> {
         match atom {
             ast::PatternAtom::EventMethod(method) => unimplemented!(),
-            ast::PatternAtom::Octave(octave) => Ok(self.interpret_octave_change(octave)),
-            ast::PatternAtom::Alteration(alteration) => unimplemented!(),
-            ast::PatternAtom::Pitch(pitch) => unimplemented!(),
+            ast::PatternAtom::Octave(octave) => {
+                Ok(self.interpret_octave_change(octave))
+            }
+            ast::PatternAtom::Alteration(alteration) => {
+                Ok(self.interpret_alteration(alteration))
+            }
+            ast::PatternAtom::Pitch(degree) => Ok(self.interpret_pitch(degree, event_size)),
             ast::PatternAtom::Pause => unimplemented!(),
             ast::PatternAtom::MacroTarget => unimplemented!(),
             ast::PatternAtom::Modulation(modulation) => unimplemented!(),
@@ -270,11 +283,31 @@ impl<'a> EventInterpreter<'a> {
     }
 
     fn interpret_octave_change(&mut self, octave: ast::Octave) {
-        // match octave {
-        //     ast::Octave::Up => self.octave_change += 1,
-        //     ast::Octave::Down => self.octave_change -= 1,
-        // }
-        unimplemented!()
+        let octave_change =
+            self.octave_change.get_or_insert(types::Octave::default());
+        match octave {
+            ast::Octave::Up => octave_change.up(),
+            ast::Octave::Down => octave_change.down(),
+        }
+    }
+
+    fn interpret_alteration(&mut self, alteration: ast::Alteration) {
+        let alteration_change = self.alteration.get_or_insert(0);
+        match alteration {
+            ast::Alteration::Up => *alteration_change += 1,
+            ast::Alteration::Down => *alteration_change -= 1,
+        }
+    }
+
+    fn interpret_pitch(&mut self, degree: u64, event_size: usize) {
+        if let Some(octave) = self.octave_change.take() {
+            //TODO: schedule octave change
+        }
+        let mut degree = types::Degree::from(degree);
+        if let Some(alteration) = self.alteration.take() {
+            degree.alteration = alteration;
+        }
+        //TODO: schedule pitch
     }
 }
 

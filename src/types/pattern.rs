@@ -390,8 +390,8 @@ impl Default for Value {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Degree {
-    value: u64,
-    alteration: i64,
+    pub value: u64,
+    pub alteration: i64,
 }
 
 impl Degree {
@@ -461,6 +461,16 @@ impl Octave {
 
     pub fn get_pitch(&self) -> u64 {
         self.pitch
+    }
+
+    pub fn up(&mut self) {
+        self.octave = self.octave.saturating_add(1);
+        self.set_as_octave(self.octave);
+    }
+
+    pub fn down(&mut self) {
+        self.octave = self.octave.saturating_sub(1);
+        self.set_as_octave(self.octave);
     }
 }
 
