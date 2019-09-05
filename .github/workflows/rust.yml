@@ -14,7 +14,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-    - uses: actions/checkout@v1
+    - uses: icepuma/rust-action@1.37.0
     - name: Build
       run: cargo build --verbose
     - name: Run tests
