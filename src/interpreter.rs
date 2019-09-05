@@ -275,7 +275,10 @@ impl<'a> EventInterpreter<'a> {
             ast::PatternAtom::Alteration(alteration) => {
                 Ok(self.interpret_alteration(alteration))
             }
-            ast::PatternAtom::Pitch(degree) => Ok(self.interpret_pitch(degree, event_size)),
+            ast::PatternAtom::Pitch(pitch) => {
+                let degree = self.interpret_pitch(pitch);
+                Ok(self.schedule_degree(degree, event_size))
+            },
             ast::PatternAtom::Pause => unimplemented!(),
             ast::PatternAtom::MacroTarget => unimplemented!(),
             ast::PatternAtom::Modulation(modulation) => unimplemented!(),
@@ -299,16 +302,23 @@ impl<'a> EventInterpreter<'a> {
         }
     }
 
-    fn interpret_pitch(&mut self, degree: u64, event_size: usize) {
-        if let Some(octave) = self.octave_change.take() {
-            //TODO: schedule octave change
-        }
-        let mut degree = types::Degree::from(degree);
+    fn interpret_pitch(&mut self, pitch: u64) -> types::Degree {
+        let mut degree = types::Degree::from(pitch);
         if let Some(alteration) = self.alteration.take() {
             degree.alteration = alteration;
         }
-        //TODO: schedule pitch
+        
+        degree
     }
+
+    fn schedule_degree(&mut self, degree: types::Degree, event_size: usize) {
+        if let Some(octave) = self.octave_change.take() {
+            //TODO: schedule octave change
+        }
+
+        //TODO: schedule the degree
+    }
+
 }
 
 #[derive(Debug, Fail)]
