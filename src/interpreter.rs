@@ -1,11 +1,13 @@
 #[cfg(test)]
 mod tests;
 
-use crate::ast;
-use crate::clock::{ Clock, CursorPosition };
-use crate::types::{self, Function, Identifier, Mixer, Value};
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::{
+    ast,
+    clock::{Clock, CursorPosition},
+    types::{self, Function, Identifier, Mixer, Value},
+};
+
+use std::{collections::HashMap, convert::TryFrom, rc::Rc};
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
@@ -161,7 +163,7 @@ trait Node {
     fn depth(&self) -> usize;
 
     fn duration_divisor(&self) -> usize {
-        self.depth().pow(2)
+        (self.depth() + 1).pow(2)
     }
 }
 
@@ -187,7 +189,7 @@ impl<'a> Node for BeatEventInterpreter<'a> {
 impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
     fn interpret(mut self, context: &mut Context<'_>) -> InterpreterResult<()> {
         for (n, event) in self.clone().beat_event.0.into_iter().enumerate() {
-            EventInterpreter {
+            let intermediate = EventInterpreter {
                 depth: self.depth(),
                 event,
                 beat: n,
@@ -197,6 +199,8 @@ impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
                 alteration: None,
             }
             .interpret(context)?;
+
+            dbg!(&intermediate);
         }
 
         Ok(())
@@ -214,6 +218,35 @@ struct EventInterpreter<'a> {
     alteration: Option<i64>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct IntermediateEvent {
+    value: Audible,
+    octave: Option<types::Octave>,
+    alteration: Option<i64>,
+    duration: f64,
+}
+
+impl IntermediateEvent {
+    fn schedule(mut self, pattern: &mut types::Pattern) {
+        if let Some(octave) = self.octave.take() {
+            //TODO:
+        }
+
+        match self.value {
+            Audible::Degree(degree) => unimplemented!(),
+            Audible::Modulation(modulation) => unimplemented!(),
+            Audible::Pause => unimplemented!(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Audible {
+    Degree(types::Degree),
+    Modulation(types::Modulation),
+    Pause,
+}
+
 impl<'a> Node for EventInterpreter<'a> {
     fn depth(&self) -> usize {
         self.depth
@@ -224,9 +257,12 @@ impl<'a> Node for EventInterpreter<'a> {
     }
 }
 
-impl<'a> Interpreter<()> for EventInterpreter<'a> {
-    fn interpret(self, context: &mut Context<'_>) -> InterpreterResult<()> {
-        match self.clone().event {
+impl<'a> Interpreter<Vec<IntermediateEvent>> for EventInterpreter<'a> {
+    fn interpret(
+        self,
+        context: &mut Context<'_>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        match self.event.clone() {
             ast::Event::Group(atoms) => self.interpret_group(atoms, context),
             ast::Event::Chord(event_groups) => unimplemented!(),
             ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
@@ -240,48 +276,62 @@ impl<'a> EventInterpreter<'a> {
         mut self,
         atoms: Vec<ast::PatternAtom>,
         context: &Context<'_>,
-    ) -> InterpreterResult<()> {
-        let event_size = atoms
-            .iter()
-            .filter(|atom| match atom {
-                ast::PatternAtom::EventMethod(_)
-                | ast::PatternAtom::Octave(_)
-                | ast::PatternAtom::Alteration(_) => false,
-                _ => true,
-            })
-            .count();
-        let mut position = CursorPosition::from((self.beat as u64, 0));
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        // let event_size = self.group_size(&atoms);
+        // let initial_duration = 1.0 / (event_size as f64);
+        // let mut group_position = CursorPosition::from((self.beat as u64, 0));
+
+        let mut output: Vec<IntermediateEvent> = Vec::new();
 
         for atom in atoms.into_iter() {
-            self.interpret_atom(atom, event_size, &mut position, context)?;
+            self.interpret_atom(atom, &mut output)?;
         }
 
-        Ok(())
+        Ok(output)
+    }
+
+    fn group_size(&self, group: &[ast::PatternAtom]) -> usize {
+        group
+            .iter()
+            .filter(|atom| match atom.value {
+                ast::PatternAtomValue::Octave(_)
+                | ast::PatternAtomValue::Alteration(_) => false,
+                _ => true,
+            })
+            .count()
     }
 
     #[allow(clippy::unit_arg)]
     fn interpret_atom(
         &mut self,
         atom: ast::PatternAtom,
-        event_size: usize,
-        position: &mut CursorPosition,
-        context: &Context<'_>,
+        output: &mut Vec<IntermediateEvent>,
     ) -> InterpreterResult<()> {
-        match atom {
-            ast::PatternAtom::EventMethod(method) => unimplemented!(),
-            ast::PatternAtom::Octave(octave) => {
+        match atom.value {
+            ast::PatternAtomValue::Octave(octave) => {
                 Ok(self.interpret_octave_change(octave))
             }
-            ast::PatternAtom::Alteration(alteration) => {
+            ast::PatternAtomValue::Alteration(alteration) => {
                 Ok(self.interpret_alteration(alteration))
             }
-            ast::PatternAtom::Pitch(pitch) => {
-                let degree = self.interpret_pitch(pitch);
-                Ok(self.schedule_degree(degree, event_size))
-            },
-            ast::PatternAtom::Pause => unimplemented!(),
-            ast::PatternAtom::MacroTarget => unimplemented!(),
-            ast::PatternAtom::Modulation(modulation) => unimplemented!(),
+            ast::PatternAtomValue::Pitch(pitch) => {
+                Ok(output.push(IntermediateEvent {
+                    value: Audible::Degree(self.interpret_pitch(pitch)),
+                    duration: self.interpret_methods(&atom.methods),
+                    alteration: self.alteration.take(),
+                    octave: self.octave_change.take(),
+                }))
+            }
+            ast::PatternAtomValue::Pause => {
+                Ok(output.push(IntermediateEvent {
+                    value: Audible::Pause,
+                    duration: self.interpret_methods(&atom.methods),
+                    alteration: self.alteration.take(),
+                    octave: self.octave_change.take(),
+                }))
+            }
+            ast::PatternAtomValue::MacroTarget => unimplemented!(),
+            ast::PatternAtomValue::Modulation(modulation) => unimplemented!(),
         }
     }
 
@@ -307,18 +357,23 @@ impl<'a> EventInterpreter<'a> {
         if let Some(alteration) = self.alteration.take() {
             degree.alteration = alteration;
         }
-        
         degree
     }
 
-    fn schedule_degree(&mut self, degree: types::Degree, event_size: usize) {
-        if let Some(octave) = self.octave_change.take() {
-            //TODO: schedule octave change
+    fn interpret_methods(&self, methods: &[ast::EventMethod]) -> f64 {
+        let mut duration = 1.0 / (self.duration_divisor() as f64);
+
+        for method in methods.iter() {
+            match method {
+                ast::EventMethod::Multiply => duration *= 2.0,
+                ast::EventMethod::Divide => duration /= 2.0,
+                ast::EventMethod::Dot => duration *= 1.5,
+                ast::EventMethod::Tie => unimplemented!(), // 0*_: ?
+            }
         }
 
-        //TODO: schedule the degree
+        duration
     }
-
 }
 
 #[derive(Debug, Fail)]

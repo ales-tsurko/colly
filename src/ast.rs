@@ -669,8 +669,13 @@ impl Event {
 
 //
 #[derive(Debug, Clone, PartialEq)]
-pub enum PatternAtom {
-    EventMethod(EventMethod),
+pub struct PatternAtom {
+    pub value: PatternAtomValue,
+    pub methods: Vec<EventMethod>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PatternAtomValue {
     Octave(Octave),
     Alteration(Alteration),
     Pitch(u64),
@@ -679,33 +684,61 @@ pub enum PatternAtom {
     Modulation(Modulation),
 }
 
+impl PatternAtomValue {
+    fn from_pitch(pair: Pair<'_, Rule>) -> ParseResult<Self> {
+        match u64::from_str_radix(pair.as_str(), 16) {
+            Ok(value) => Ok(Self::Pitch(value)),
+            Err(e) => Err(CollyParser::error(&format!("{:?}", e), &pair)),
+        }
+    }
+}
+
 impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
     type Error = Error<Rule>;
 
     fn try_from(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
+        let mut inner = pair.into_inner();
+        let value = inner.next().unwrap();
 
-        match inner.as_rule() {
-            Rule::EventMethod => {
-                Ok(PatternAtom::EventMethod(inner.try_into()?))
-            }
-            Rule::Octave => Ok(PatternAtom::Octave(inner.try_into()?)),
-            Rule::Alteration => Ok(PatternAtom::Alteration(inner.try_into()?)),
-            Rule::Pitch => Self::from_pitch(inner),
-            Rule::Pause => Ok(PatternAtom::Pause),
-            Rule::MacroTarget => Ok(PatternAtom::MacroTarget),
-            Rule::Modulation => Ok(PatternAtom::Modulation(inner.try_into()?)),
-            _ => CollyParser::rule_error(&inner),
+        match value.as_rule() {
+            Rule::Octave => Ok(PatternAtom {
+                value: PatternAtomValue::Octave(value.try_into()?),
+                methods: Vec::new(),
+            }),
+            Rule::Alteration => Ok(PatternAtom {
+                value: PatternAtomValue::Alteration(value.try_into()?),
+                methods: Vec::new(),
+            }),
+            Rule::Pitch => Ok(PatternAtom {
+                value: PatternAtomValue::from_pitch(value)?,
+                methods: Self::parse_methods(inner)?,
+            }),
+            Rule::Pause => Ok(PatternAtom {
+                value: PatternAtomValue::Pause,
+                methods: Self::parse_methods(inner)?,
+            }),
+            Rule::MacroTarget => Ok(PatternAtom {
+                value: PatternAtomValue::MacroTarget,
+                methods: Self::parse_methods(inner)?,
+            }),
+            Rule::Modulation => Ok(PatternAtom {
+                value: PatternAtomValue::Modulation(value.try_into()?),
+                methods: Self::parse_methods(inner)?,
+            }),
+            _ => CollyParser::rule_error(&value),
         }
     }
 }
 
 impl PatternAtom {
-    fn from_pitch(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        match u64::from_str_radix(pair.as_str(), 16) {
-            Ok(value) => Ok(PatternAtom::Pitch(value)),
-            Err(e) => Err(CollyParser::error(&format!("{:?}", e), &pair)),
+    fn parse_methods(pairs: Pairs<'_, Rule>) -> ParseResult<Vec<EventMethod>> {
+        let mut methods: Vec<EventMethod> = Vec::new();
+
+        for pair in pairs {
+            methods.push(EventMethod::try_from(pair)?);
         }
+
+        Ok(methods)
     }
 }
 

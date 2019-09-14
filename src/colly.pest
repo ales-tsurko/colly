@@ -58,7 +58,7 @@ UnsignedInt = @{ "0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT* }
 WHITESPACE = _{ " " | "\t" }
 COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 
-// Patterns (meta)language
+// Patterns language
 
 PatternAssignment = { PatternSlot ~ PatternSuperExpression }
 PatternSuperExpression = { PatternExpressionList | PatternExpression }
@@ -72,13 +72,9 @@ ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ ")
 Chord = ${ "[" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ "]" ~ EventMethod* }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
-	  EventMethod
-    | Octave 
-    | Alteration
-    | Pitch
-    | Pause
-    | Modulation
-    | MacroTarget }
+    Octave 
+    | Alteration 
+    | (( Pitch | Pause | Modulation | MacroTarget ) ~ EventMethod*) }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
 MacroTarget = { "%" }
