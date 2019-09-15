@@ -23,14 +23,12 @@ fn interpret_event_group_pitch() {
     let mut context = Context::default();
     let event: ast::Event =
         CollyParser::parse_source_for_rule("a*.0:", Rule::Event).unwrap();
-    let pattern = Pattern::default();
     let octave = Octave::default();
     let event_interpreter = EventInterpreter {
         depth: 0,
         event,
         beat: 0,
-        pattern: &pattern,
-        octave: &octave,
+        octave: Rc::new(RefCell::new(octave)),
         octave_change: None,
         position: 0.0,
     };
