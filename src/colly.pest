@@ -67,20 +67,21 @@ PatternExpression = { Pattern ~ PatternMacro? ~ ("=>" ~ FunctionExpression*)? ~ 
 PatternMacro = { FunctionExpression }
 Pattern = { "|" ~ BeatEvent* ~  "|" }
 BeatEvent = ${ Event+ }
-Event = { EventMethod | Group | Chord | ParenthesisedEventGroup }
+Event = { Group | Chord | ParenthesisedEventGroup }
 ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ ")" ~ EventMethod* }
 Chord = ${ "[" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ "]" ~ EventMethod* }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
     Octave 
-    | Alteration 
-    | (( Pitch | Pause | Modulation | MacroTarget ) ~ EventMethod*) }
+    | (( Note | Tie | Pause | Modulation | MacroTarget ) ~ EventMethod*) }
+Note = ${ Alteration* ~ Pitch }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
 MacroTarget = { "%" }
+Tie = { "_" }
 Octave = { "o" | "O" }
 Alteration = { "+" | "-" }
-EventMethod = { "_" | "." | "*" | ":" }
+EventMethod = { "." | "*" | ":" }
 Modulation = { ModulationSymbol | LiteralModulation }
 ModulationSymbol = { "p" | "F" | "<" | ">" }
 LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
