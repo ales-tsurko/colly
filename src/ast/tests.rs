@@ -623,6 +623,21 @@ fn parse_atom_with_methods() {
 }
 
 #[test]
+fn parse_note_with_alterations() {
+       let result: ParseResult<PatternAtom> =
+        CollyParser::parse_source_for_rule("++--+2", Rule::PatternAtom);
+    let expected = PatternAtom {
+        value: PatternAtomValue::Note(Note {
+            pitch: 2,
+            alteration: vec![Alteration::Up, Alteration::Up, Alteration::Down, Alteration::Down, Alteration::Up],
+        }),
+        methods: Vec::new(),
+    };
+
+    assert_eq!(expected, result.unwrap()); 
+}
+
+#[test]
 fn test_parse_pattern_expression() {
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule("|| hello", Rule::PatternExpression);

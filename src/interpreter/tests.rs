@@ -7,7 +7,7 @@ fn interpret_pattern_complex() {
     // let result: ast::Pattern = tests::parse_source_for_rule("|01 2|", Rule::Pattern).unwrap();
 
     let result: ast::Pattern = CollyParser::parse_source_for_rule(
-        "| 01*:23 * *01[0 1 23]* (012 34)* 01(23 4)5* 1: |",
+        "| 01*:23 01[0 1 23]* (012 34)* 01(23 4)5* 1: |",
         Rule::Pattern,
     )
     .unwrap();
