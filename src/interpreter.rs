@@ -196,7 +196,6 @@ impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
                 pattern: &mut self.pattern,
                 octave: &mut self.octave,
                 octave_change: None,
-                alteration: None,
             }
             .interpret(context)?;
 
@@ -215,14 +214,12 @@ struct EventInterpreter<'a> {
     pattern: &'a types::Pattern,
     octave: &'a types::Octave,
     octave_change: Option<types::Octave>,
-    alteration: Option<i64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 struct IntermediateEvent {
     value: Audible,
     octave: Option<types::Octave>,
-    alteration: Option<i64>,
     duration: f64,
 }
 
@@ -294,8 +291,7 @@ impl<'a> EventInterpreter<'a> {
         group
             .iter()
             .filter(|atom| match atom.value {
-                ast::PatternAtomValue::Octave(_)
-                | ast::PatternAtomValue::Alteration(_) => false,
+                ast::PatternAtomValue::Octave(_) => false,
                 _ => true,
             })
             .count()
@@ -311,14 +307,11 @@ impl<'a> EventInterpreter<'a> {
             ast::PatternAtomValue::Octave(octave) => {
                 Ok(self.interpret_octave_change(octave))
             }
-            ast::PatternAtomValue::Alteration(alteration) => {
-                Ok(self.interpret_alteration(alteration))
-            }
-            ast::PatternAtomValue::Pitch(pitch) => {
+            ast::PatternAtomValue::Tie => unimplemented!(),
+            ast::PatternAtomValue::Note(note) => {
                 Ok(output.push(IntermediateEvent {
-                    value: Audible::Degree(self.interpret_pitch(pitch)),
+                    value: Audible::Degree(self.interpret_note(note)),
                     duration: self.interpret_methods(&atom.methods),
-                    alteration: self.alteration.take(),
                     octave: self.octave_change.take(),
                 }))
             }
@@ -326,7 +319,6 @@ impl<'a> EventInterpreter<'a> {
                 Ok(output.push(IntermediateEvent {
                     value: Audible::Pause,
                     duration: self.interpret_methods(&atom.methods),
-                    alteration: self.alteration.take(),
                     octave: self.octave_change.take(),
                 }))
             }
@@ -344,20 +336,23 @@ impl<'a> EventInterpreter<'a> {
         }
     }
 
-    fn interpret_alteration(&mut self, alteration: ast::Alteration) {
-        let alteration_change = self.alteration.get_or_insert(0);
-        match alteration {
-            ast::Alteration::Up => *alteration_change += 1,
-            ast::Alteration::Down => *alteration_change -= 1,
-        }
+    fn interpret_note(&mut self, note: ast::Note) -> types::Degree {
+        let mut degree = types::Degree::from(note.pitch);
+        degree.alteration = self.interpret_alteration(note.alteration);
+
+        degree
     }
 
-    fn interpret_pitch(&mut self, pitch: u64) -> types::Degree {
-        let mut degree = types::Degree::from(pitch);
-        if let Some(alteration) = self.alteration.take() {
-            degree.alteration = alteration;
-        }
-        degree
+    fn interpret_alteration(
+        &mut self,
+        alterations: Vec<ast::Alteration>,
+    ) -> i64 {
+        alterations
+            .into_iter()
+            .fold(0, |acc, alteration| match alteration {
+                ast::Alteration::Up => acc + 1,
+                ast::Alteration::Down => acc - 1,
+            })
     }
 
     fn interpret_methods(&self, methods: &[ast::EventMethod]) -> f64 {
@@ -368,7 +363,6 @@ impl<'a> EventInterpreter<'a> {
                 ast::EventMethod::Multiply => duration *= 2.0,
                 ast::EventMethod::Divide => duration /= 2.0,
                 ast::EventMethod::Dot => duration *= 1.5,
-                ast::EventMethod::Tie => unimplemented!(), // 0*_: ?
             }
         }
 

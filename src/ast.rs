@@ -677,20 +677,17 @@ pub struct PatternAtom {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternAtomValue {
     Octave(Octave),
-    Alteration(Alteration),
-    Pitch(u64),
+    Note(Note),
+    Tie,
     Pause,
     MacroTarget,
     Modulation(Modulation),
 }
 
-impl PatternAtomValue {
-    fn from_pitch(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        match u64::from_str_radix(pair.as_str(), 16) {
-            Ok(value) => Ok(Self::Pitch(value)),
-            Err(e) => Err(CollyParser::error(&format!("{:?}", e), &pair)),
-        }
-    }
+#[derive(Debug, Clone, PartialEq)]
+pub struct Note {
+    pub pitch: u64,
+    pub alteration: Vec<Alteration>,
 }
 
 impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
@@ -705,12 +702,12 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
                 value: PatternAtomValue::Octave(value.try_into()?),
                 methods: Vec::new(),
             }),
-            Rule::Alteration => Ok(PatternAtom {
-                value: PatternAtomValue::Alteration(value.try_into()?),
-                methods: Vec::new(),
+            Rule::Note => Ok(PatternAtom {
+                value: PatternAtomValue::from_note(value)?,
+                methods: Self::parse_methods(inner)?,
             }),
-            Rule::Pitch => Ok(PatternAtom {
-                value: PatternAtomValue::from_pitch(value)?,
+            Rule::Tie => Ok(PatternAtom {
+                value: PatternAtomValue::Tie,
                 methods: Self::parse_methods(inner)?,
             }),
             Rule::Pause => Ok(PatternAtom {
@@ -742,10 +739,36 @@ impl PatternAtom {
     }
 }
 
+impl PatternAtomValue {
+    fn from_note(pair: Pair<'_, Rule>) -> ParseResult<Self> {
+        let inner = pair.into_inner();
+        let mut alteration: Vec<Alteration> = Vec::new();
+        let mut pitch: u64 = 0;
+
+        for pair in inner {
+            match pair.as_rule() {
+                Rule::Alteration => {
+                    alteration.push(Alteration::try_from(pair)?)
+                }
+                Rule::Pitch => pitch = Self::parse_pitch(pair)?,
+                _ => CollyParser::rule_error(&pair)?,
+            }
+        }
+
+        Ok(Self::Note(Note { pitch, alteration }))
+    }
+
+    fn parse_pitch(pair: Pair<'_, Rule>) -> ParseResult<u64> {
+        match u64::from_str_radix(pair.as_str(), 16) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(CollyParser::error(&format!("{:?}", e), &pair)),
+        }
+    }
+}
+
 //
 #[derive(Debug, Clone, PartialEq)]
 pub enum EventMethod {
-    Tie,
     Dot,
     Multiply,
     Divide,
@@ -756,7 +779,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for EventMethod {
 
     fn try_from(pair: Pair<'_, Rule>) -> ParseResult<Self> {
         match pair.as_str() {
-            "_" => Ok(EventMethod::Tie),
             "." => Ok(EventMethod::Dot),
             "*" => Ok(EventMethod::Multiply),
             ":" => Ok(EventMethod::Divide),

@@ -558,7 +558,7 @@ fn parse_atom_with_methods() {
 
     assert_eq!(expected, result.unwrap());
 
-        let result: ParseResult<PatternAtom> =
+    let result: ParseResult<PatternAtom> =
         CollyParser::parse_source_for_rule("F*:._", Rule::PatternAtom);
     let expected = PatternAtom {
         value: PatternAtomValue::Modulation(Modulation::Up),
@@ -572,7 +572,7 @@ fn parse_atom_with_methods() {
 
     assert_eq!(expected, result.unwrap());
 
-        let result: ParseResult<PatternAtom> =
+    let result: ParseResult<PatternAtom> =
         CollyParser::parse_source_for_rule("2*:._", Rule::PatternAtom);
     let expected = PatternAtom {
         value: PatternAtomValue::Pitch(2),
