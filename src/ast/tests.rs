@@ -411,15 +411,24 @@ fn test_parse_event() {
     let expected = Event::Chord(Chord {
         inner: vec![
             BeatEvent(vec![Event::Group(vec![PatternAtom {
-                value: PatternAtomValue::Pitch(0),
+                value: PatternAtomValue::Note(Note {
+                    pitch: 0,
+                    alteration: Vec::new(),
+                }),
                 methods: Vec::new(),
             }])]),
             BeatEvent(vec![Event::Group(vec![PatternAtom {
-                value: PatternAtomValue::Pitch(1),
+                value: PatternAtomValue::Note(Note {
+                    pitch: 1,
+                    alteration: Vec::new(),
+                }),
                 methods: Vec::new(),
             }])]),
             BeatEvent(vec![Event::Group(vec![PatternAtom {
-                value: PatternAtomValue::Pitch(2),
+                value: PatternAtomValue::Note(Note {
+                    pitch: 2,
+                    alteration: Vec::new(),
+                }),
                 methods: Vec::new(),
             }])]),
         ],
@@ -434,11 +443,17 @@ fn test_parse_event() {
             // 01
             BeatEvent(vec![Event::Group(vec![
                 PatternAtom {
-                    value: PatternAtomValue::Pitch(0),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 0,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 },
                 PatternAtom {
-                    value: PatternAtomValue::Pitch(1),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 1,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 },
             ])]),
@@ -450,11 +465,17 @@ fn test_parse_event() {
                         // 23
                         BeatEvent(vec![Event::Group(vec![
                             PatternAtom {
-                                value: PatternAtomValue::Pitch(2),
+                                value: PatternAtomValue::Note(Note {
+                                    pitch: 2,
+                                    alteration: Vec::new(),
+                                }),
                                 methods: Vec::new(),
                             },
                             PatternAtom {
-                                value: PatternAtomValue::Pitch(3),
+                                value: PatternAtomValue::Note(Note {
+                                    pitch: 3,
+                                    alteration: Vec::new(),
+                                }),
                                 methods: Vec::new(),
                             },
                         ])]),
@@ -463,7 +484,10 @@ fn test_parse_event() {
                             ParenthesisedEvent {
                                 inner: vec![BeatEvent(vec![Event::Group(
                                     vec![PatternAtom {
-                                        value: PatternAtomValue::Pitch(4),
+                                        value: PatternAtomValue::Note(Note {
+                                            pitch: 4,
+                                            alteration: Vec::new(),
+                                        }),
                                         methods: Vec::new(),
                                     }],
                                 )])],
@@ -472,7 +496,10 @@ fn test_parse_event() {
                         )]),
                         // 5
                         BeatEvent(vec![Event::Group(vec![PatternAtom {
-                            value: PatternAtomValue::Pitch(5),
+                            value: PatternAtomValue::Note(Note {
+                                pitch: 5,
+                                alteration: Vec::new(),
+                            }),
                             methods: Vec::new(),
                         }])]),
                     ],
@@ -480,7 +507,10 @@ fn test_parse_event() {
                 }),
                 // 6
                 Event::Group(vec![PatternAtom {
-                    value: PatternAtomValue::Pitch(6),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 6,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 }]),
             ]),
@@ -498,16 +528,25 @@ fn parse_event_with_method() {
         inner: vec![
             BeatEvent(vec![Event::Group(vec![
                 PatternAtom {
-                    value: PatternAtomValue::Pitch(0),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 0,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 },
                 PatternAtom {
-                    value: PatternAtomValue::Pitch(1),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 1,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 },
             ])]),
             BeatEvent(vec![Event::Group(vec![PatternAtom {
-                value: PatternAtomValue::Pitch(2),
+                value: PatternAtomValue::Note(Note {
+                    pitch: 2,
+                    alteration: Vec::new(),
+                }),
                 methods: Vec::new(),
             }])]),
         ],
@@ -523,16 +562,25 @@ fn parse_event_with_method() {
             inner: vec![
                 BeatEvent(vec![Event::Group(vec![
                     PatternAtom {
-                        value: PatternAtomValue::Pitch(0),
+                        value: PatternAtomValue::Note(Note {
+                            pitch: 0,
+                            alteration: Vec::new(),
+                        }),
                         methods: Vec::new(),
                     },
                     PatternAtom {
-                        value: PatternAtomValue::Pitch(1),
+                        value: PatternAtomValue::Note(Note {
+                            pitch: 1,
+                            alteration: Vec::new(),
+                        }),
                         methods: Vec::new(),
                     },
                 ])]),
                 BeatEvent(vec![Event::Group(vec![PatternAtom {
-                    value: PatternAtomValue::Pitch(2),
+                    value: PatternAtomValue::Note(Note {
+                        pitch: 2,
+                        alteration: Vec::new(),
+                    }),
                     methods: Vec::new(),
                 }])]),
             ],
@@ -545,42 +593,29 @@ fn parse_event_with_method() {
 #[test]
 fn parse_atom_with_methods() {
     let result: ParseResult<PatternAtom> =
-        CollyParser::parse_source_for_rule("2*:._", Rule::PatternAtom);
+        CollyParser::parse_source_for_rule("2*:.", Rule::PatternAtom);
     let expected = PatternAtom {
-        value: PatternAtomValue::Pitch(2),
+        value: PatternAtomValue::Note(Note {
+            pitch: 2,
+            alteration: Vec::new(),
+        }),
         methods: vec![
             EventMethod::Multiply,
             EventMethod::Divide,
             EventMethod::Dot,
-            EventMethod::Tie,
         ],
     };
 
     assert_eq!(expected, result.unwrap());
 
     let result: ParseResult<PatternAtom> =
-        CollyParser::parse_source_for_rule("F*:._", Rule::PatternAtom);
+        CollyParser::parse_source_for_rule("F*:.", Rule::PatternAtom);
     let expected = PatternAtom {
         value: PatternAtomValue::Modulation(Modulation::Up),
         methods: vec![
             EventMethod::Multiply,
             EventMethod::Divide,
             EventMethod::Dot,
-            EventMethod::Tie,
-        ],
-    };
-
-    assert_eq!(expected, result.unwrap());
-
-    let result: ParseResult<PatternAtom> =
-        CollyParser::parse_source_for_rule("2*:._", Rule::PatternAtom);
-    let expected = PatternAtom {
-        value: PatternAtomValue::Pitch(2),
-        methods: vec![
-            EventMethod::Multiply,
-            EventMethod::Divide,
-            EventMethod::Dot,
-            EventMethod::Tie,
         ],
     };
 
@@ -704,7 +739,10 @@ fn test_parse_pitch() {
         CollyParser::parse_source_for_rule("a", Rule::PatternAtom);
     assert_eq!(
         PatternAtom {
-            value: PatternAtomValue::Pitch(10),
+            value: PatternAtomValue::Note(Note {
+                pitch: 10,
+                alteration: Vec::new()
+            }),
             methods: Vec::new()
         },
         result.unwrap()
@@ -714,7 +752,10 @@ fn test_parse_pitch() {
         CollyParser::parse_source_for_rule("f", Rule::PatternAtom);
     assert_eq!(
         PatternAtom {
-            value: PatternAtomValue::Pitch(15),
+            value: PatternAtomValue::Note(Note {
+                pitch: 15,
+                alteration: Vec::new()
+            }),
             methods: Vec::new()
         },
         result.unwrap()
@@ -753,18 +794,12 @@ fn test_pattern_assignment() {
     assert_eq!(expected, result.unwrap());
 }
 
+#[should_panic]
 #[test]
 fn test_parse_event_as_event_method() {
     let result: ParseResult<BeatEvent> =
-        CollyParser::parse_source_for_rule("*:._", Rule::BeatEvent);
-    let expected = BeatEvent(vec![
-        Event::EventMethod(EventMethod::Multiply),
-        Event::EventMethod(EventMethod::Divide),
-        Event::EventMethod(EventMethod::Dot),
-        Event::EventMethod(EventMethod::Tie),
-    ]);
-
-    assert_eq!(expected, result.unwrap());
+        CollyParser::parse_source_for_rule("*:.", Rule::BeatEvent);
+    result.unwrap();
 }
 
 #[allow(dead_code)]
