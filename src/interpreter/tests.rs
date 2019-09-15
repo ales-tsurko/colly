@@ -32,6 +32,7 @@ fn interpret_event_group_pitch() {
         pattern: &pattern,
         octave: &octave,
         octave_change: None,
+        position: 0.0,
     };
 
     assert_eq!(
@@ -40,11 +41,13 @@ fn interpret_event_group_pitch() {
                 value: Audible::Degree(Degree::from(10)),
                 duration: 3.0,
                 octave: None,
+                position: 0.0,
             },
             IntermediateEvent {
                 value: Audible::Degree(Degree::default()),
                 duration: 0.5,
                 octave: None,
+                position: 3.0,
             }
         ],
         event_interpreter.interpret(&mut context).unwrap()

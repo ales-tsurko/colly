@@ -196,6 +196,7 @@ impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
                 pattern: &mut self.pattern,
                 octave: &mut self.octave,
                 octave_change: None,
+                position: 0.0,
             }
             .interpret(context)?;
 
@@ -214,6 +215,7 @@ struct EventInterpreter<'a> {
     pattern: &'a types::Pattern,
     octave: &'a types::Octave,
     octave_change: Option<types::Octave>,
+    position: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -221,6 +223,7 @@ struct IntermediateEvent {
     value: Audible,
     octave: Option<types::Octave>,
     duration: f64,
+    position: f64,
 }
 
 impl IntermediateEvent {
@@ -260,7 +263,7 @@ impl<'a> Interpreter<Vec<IntermediateEvent>> for EventInterpreter<'a> {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         match self.event.clone() {
-            ast::Event::Group(atoms) => self.interpret_group(atoms, context),
+            ast::Event::Group(atoms) => self.interpret_group(atoms),
             ast::Event::Chord(event_groups) => unimplemented!(),
             ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
             ast::Event::EventMethod(event_method) => unimplemented!(),
@@ -272,12 +275,7 @@ impl<'a> EventInterpreter<'a> {
     fn interpret_group(
         mut self,
         atoms: Vec<ast::PatternAtom>,
-        context: &Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        // let event_size = self.group_size(&atoms);
-        // let initial_duration = 1.0 / (event_size as f64);
-        // let mut group_position = CursorPosition::from((self.beat as u64, 0));
-
         let mut output: Vec<IntermediateEvent> = Vec::new();
 
         for atom in atoms.into_iter() {
@@ -285,16 +283,6 @@ impl<'a> EventInterpreter<'a> {
         }
 
         Ok(output)
-    }
-
-    fn group_size(&self, group: &[ast::PatternAtom]) -> usize {
-        group
-            .iter()
-            .filter(|atom| match atom.value {
-                ast::PatternAtomValue::Octave(_) => false,
-                _ => true,
-            })
-            .count()
     }
 
     #[allow(clippy::unit_arg)]
@@ -309,18 +297,12 @@ impl<'a> EventInterpreter<'a> {
             }
             ast::PatternAtomValue::Tie => unimplemented!(),
             ast::PatternAtomValue::Note(note) => {
-                Ok(output.push(IntermediateEvent {
-                    value: Audible::Degree(self.interpret_note(note)),
-                    duration: self.interpret_methods(&atom.methods),
-                    octave: self.octave_change.take(),
-                }))
+                let value = Audible::Degree(self.interpret_note(note));
+                Ok(output.push(self.next_intermediate(value, &atom.methods)))
             }
             ast::PatternAtomValue::Pause => {
-                Ok(output.push(IntermediateEvent {
-                    value: Audible::Pause,
-                    duration: self.interpret_methods(&atom.methods),
-                    octave: self.octave_change.take(),
-                }))
+                let value = Audible::Pause;
+                Ok(output.push(self.next_intermediate(value, &atom.methods)))
             }
             ast::PatternAtomValue::MacroTarget => unimplemented!(),
             ast::PatternAtomValue::Modulation(modulation) => unimplemented!(),
@@ -334,6 +316,23 @@ impl<'a> EventInterpreter<'a> {
             ast::Octave::Up => octave_change.up(),
             ast::Octave::Down => octave_change.down(),
         }
+    }
+
+    fn next_intermediate(
+        &mut self,
+        value: Audible,
+        methods: &[ast::EventMethod],
+    ) -> IntermediateEvent {
+        let duration = self.interpret_methods(methods);
+        let intermediate = IntermediateEvent {
+            value,
+            duration,
+            octave: self.octave_change.take(),
+            position: self.position,
+        };
+        self.position += duration;
+
+        intermediate
     }
 
     fn interpret_note(&mut self, note: ast::Note) -> types::Degree {
