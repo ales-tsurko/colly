@@ -7,7 +7,7 @@ use crate::{
     types::{self, Function, Identifier, Mixer, Value},
 };
 
-use std::{collections::HashMap, convert::TryFrom, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 type InterpreterResult<T> = Result<T, InterpreterError>;
 
@@ -139,19 +139,23 @@ impl Interpreter<types::Pattern> for ast::Pattern {
         self,
         context: &mut Context<'_>,
     ) -> InterpreterResult<types::Pattern> {
+        let octave = Rc::new(RefCell::new(types::Octave::default()));
+        let mut intermediates: Vec<IntermediateEvent> = Vec::new();
+        for (beat, beat_event) in self.0.into_iter().enumerate() {
+            intermediates.append(
+                &mut BeatEventInterpreter {
+                    depth: 0,
+                    beat,
+                    beat_event,
+                    octave: octave.clone(),
+                }
+                .interpret(context)?,
+            );
+        }
+
         let mut pattern =
             types::Pattern::new(context.mixer.clock.cursor().clone());
-        let mut octave = types::Octave::default();
-        for (beat, beat_event) in self.0.into_iter().enumerate() {
-            let mut beat_event_interpreter = BeatEventInterpreter {
-                depth: 0,
-                beat,
-                beat_event,
-                pattern: &pattern,
-                octave: &octave,
-            };
-            beat_event_interpreter.interpret(context)?;
-        }
+        // TODO: schedule events
 
         Ok(pattern)
     }
@@ -168,15 +172,14 @@ trait Node {
 }
 
 #[derive(Debug, Clone)]
-struct BeatEventInterpreter<'a> {
+struct BeatEventInterpreter {
     depth: usize,
     beat_event: ast::BeatEvent,
     beat: usize,
-    pattern: &'a types::Pattern,
-    octave: &'a types::Octave,
+    octave: Rc<RefCell<types::Octave>>,
 }
 
-impl<'a> Node for BeatEventInterpreter<'a> {
+impl Node for BeatEventInterpreter {
     fn depth(&self) -> usize {
         self.depth
     }
@@ -186,34 +189,36 @@ impl<'a> Node for BeatEventInterpreter<'a> {
     }
 }
 
-impl<'a> Interpreter<()> for BeatEventInterpreter<'a> {
-    fn interpret(mut self, context: &mut Context<'_>) -> InterpreterResult<()> {
+impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
+    fn interpret(
+        mut self,
+        context: &mut Context<'_>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        let mut output: Vec<IntermediateEvent> = Vec::new();
         for (n, event) in self.clone().beat_event.0.into_iter().enumerate() {
-            let intermediate = EventInterpreter {
-                depth: self.depth(),
-                event,
-                beat: n,
-                pattern: &mut self.pattern,
-                octave: &mut self.octave,
-                octave_change: None,
-                position: 0.0,
-            }
-            .interpret(context)?;
-
-            dbg!(&intermediate);
+            output.append(
+                &mut EventInterpreter {
+                    depth: self.depth(),
+                    event,
+                    beat: n,
+                    octave: self.octave.clone(),
+                    octave_change: None,
+                    position: 0.0,
+                }
+                .interpret(context)?,
+            );
         }
 
-        Ok(())
+        Ok(output)
     }
 }
 
 #[derive(Debug, Clone)]
-struct EventInterpreter<'a> {
-    depth: usize,
+struct EventInterpreter {
     event: ast::Event,
+    depth: usize,
     beat: usize,
-    pattern: &'a types::Pattern,
-    octave: &'a types::Octave,
+    octave: Rc<RefCell<types::Octave>>,
     octave_change: Option<types::Octave>,
     position: f64,
 }
@@ -235,7 +240,7 @@ impl IntermediateEvent {
         match self.value {
             Audible::Degree(degree) => unimplemented!(),
             Audible::Modulation(modulation) => unimplemented!(),
-            Audible::Pause => unimplemented!(),
+            Audible::Pause => (),
         }
     }
 }
@@ -247,7 +252,7 @@ enum Audible {
     Pause,
 }
 
-impl<'a> Node for EventInterpreter<'a> {
+impl Node for EventInterpreter {
     fn depth(&self) -> usize {
         self.depth
     }
@@ -257,7 +262,7 @@ impl<'a> Node for EventInterpreter<'a> {
     }
 }
 
-impl<'a> Interpreter<Vec<IntermediateEvent>> for EventInterpreter<'a> {
+impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
     fn interpret(
         self,
         context: &mut Context<'_>,
@@ -271,7 +276,7 @@ impl<'a> Interpreter<Vec<IntermediateEvent>> for EventInterpreter<'a> {
     }
 }
 
-impl<'a> EventInterpreter<'a> {
+impl EventInterpreter {
     fn interpret_group(
         mut self,
         atoms: Vec<ast::PatternAtom>,
@@ -310,11 +315,18 @@ impl<'a> EventInterpreter<'a> {
     }
 
     fn interpret_octave_change(&mut self, octave: ast::Octave) {
+        let mut global_octave = self.octave.borrow_mut();
         let octave_change =
-            self.octave_change.get_or_insert(types::Octave::default());
+            self.octave_change.get_or_insert(global_octave.clone());
         match octave {
-            ast::Octave::Up => octave_change.up(),
-            ast::Octave::Down => octave_change.down(),
+            ast::Octave::Up => {
+                octave_change.up();
+                global_octave.up();
+            }
+            ast::Octave::Down => {
+                octave_change.down();
+                global_octave.down();
+            }
         }
     }
 
