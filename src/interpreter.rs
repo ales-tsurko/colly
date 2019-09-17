@@ -203,14 +203,13 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
-        for (n, event) in self.clone().beat_event.0.into_iter().enumerate() {
+        for event in self.clone().beat_event.0 {
             output.append(
                 &mut EventInterpreter {
                     depth: self.depth(),
                     event,
-                    beat: n,
+                    beat: self.beat(),
                     octave: self.octave.clone(),
-                    octave_change: None,
                     position: 0.0,
                 }
                 .interpret(context)?,
@@ -227,39 +226,7 @@ struct EventInterpreter {
     depth: usize,
     beat: usize,
     octave: Rc<RefCell<types::Octave>>,
-    octave_change: Option<types::Octave>,
     position: f64,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct IntermediateEvent {
-    value: Audible,
-    octave: Option<types::Octave>,
-    duration: f64,
-    position: f64,
-}
-
-impl IntermediateEvent {
-    fn schedule(mut self, pattern: &mut types::Pattern) {
-        if let Some(octave) = self.octave.take() {
-            //TODO:
-        }
-
-        match self.value {
-            Audible::Degree(degree) => unimplemented!(),
-            Audible::Modulation(modulation) => unimplemented!(),
-            Audible::Pause => (),
-            Audible::Tie => unreachable!(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum Audible {
-    Degree(types::Degree),
-    Modulation(types::Modulation),
-    Pause,
-    Tie,
 }
 
 impl Node for EventInterpreter {
@@ -279,29 +246,74 @@ impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         match self.event.clone() {
             ast::Event::Group(atoms) => self.interpret_group(atoms),
-            ast::Event::Chord(event_groups) => unimplemented!(),
-            ast::Event::ParenthesisedEvent(event_groups) => unimplemented!(),
-            ast::Event::EventMethod(event_method) => unimplemented!(),
+            ast::Event::Chord(chord) => self.interpret_chord(chord),
+            ast::Event::ParenthesisedEvent(event) => {
+                self.interpret_parenthesised(event)
+            }
         }
     }
 }
 
 impl EventInterpreter {
     fn interpret_group(
-        mut self,
+        self,
         atoms: Vec<ast::PatternAtom>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
+        let mut atom_interpreter = AtomInterpreter::new(
+            self.octave.clone(),
+            self.beat(),
+            self.position,
+        );
 
         for atom in atoms.into_iter() {
-            self.interpret_atom(atom, &mut output)?;
+            atom_interpreter.interpret(atom, &mut output)?;
         }
 
         Ok(output)
     }
 
+    fn interpret_parenthesised(
+        self,
+        event: ast::ParenthesisedEvent,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        for event in event.inner {}
+
+        unimplemented!()
+    }
+
+    fn interpret_chord(
+        self,
+        chord: ast::Chord,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        unimplemented!()
+    }
+}
+
+#[derive(Debug, Default)]
+struct AtomInterpreter {
+    octave: Rc<RefCell<types::Octave>>,
+    octave_change: Option<types::Octave>,
+    position: f64,
+    beat: usize,
+}
+
+impl AtomInterpreter {
+    fn new(
+        octave: Rc<RefCell<types::Octave>>,
+        beat: usize,
+        position: f64,
+    ) -> Self {
+        Self {
+            octave: octave.clone(),
+            beat,
+            position,
+            ..Default::default()
+        }
+    }
+
     #[allow(clippy::unit_arg)]
-    fn interpret_atom(
+    fn interpret(
         &mut self,
         atom: ast::PatternAtom,
         output: &mut Vec<IntermediateEvent>,
@@ -346,12 +358,13 @@ impl EventInterpreter {
         value: Audible,
         methods: &[ast::EventMethod],
     ) -> IntermediateEvent {
-        let duration = self.interpret_methods(methods);
+        let duration = AtomInterpreter::interpret_methods(1.0, methods);
         let intermediate = IntermediateEvent {
             value,
             duration,
             octave: self.octave_change.take(),
             position: self.position,
+            beat: self.beat,
         };
         self.position += duration;
 
@@ -377,18 +390,46 @@ impl EventInterpreter {
             })
     }
 
-    fn interpret_methods(&self, methods: &[ast::EventMethod]) -> f64 {
-        let mut duration = 1.0 / (self.duration_divisor() as f64);
+    fn interpret_methods(source: f64, methods: &[ast::EventMethod]) -> f64 {
+        methods
+            .iter()
+            .fold(source, |duration, method| match method {
+                ast::EventMethod::Multiply => duration * 2.0,
+                ast::EventMethod::Divide => duration / 2.0,
+                ast::EventMethod::Dot => duration * 1.5,
+            })
+    }
+}
 
-        for method in methods.iter() {
-            match method {
-                ast::EventMethod::Multiply => duration *= 2.0,
-                ast::EventMethod::Divide => duration /= 2.0,
-                ast::EventMethod::Dot => duration *= 1.5,
-            }
+#[derive(Debug, Clone, PartialEq)]
+struct IntermediateEvent {
+    value: Audible,
+    octave: Option<types::Octave>,
+    duration: f64,
+    position: f64,
+    beat: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Audible {
+    Degree(types::Degree),
+    Modulation(types::Modulation),
+    Pause,
+    Tie,
+}
+
+impl IntermediateEvent {
+    fn schedule(mut self, pattern: &mut types::Pattern) {
+        if let Some(octave) = self.octave.take() {
+            //TODO:
         }
 
-        duration
+        match self.value {
+            Audible::Degree(degree) => unimplemented!(),
+            Audible::Modulation(modulation) => unimplemented!(),
+            Audible::Pause => (),
+            Audible::Tie => unreachable!(),
+        }
     }
 }
 

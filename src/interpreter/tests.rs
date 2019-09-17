@@ -7,7 +7,7 @@ fn interpret_pattern_complex() {
     // let result: ast::Pattern = tests::parse_source_for_rule("|01 2|", Rule::Pattern).unwrap();
 
     let result: ast::Pattern = CollyParser::parse_source_for_rule(
-        "| 01*:23 01[0 1 23]* (012 34)* 01(23 4)5* 1: |",
+        "| 01*:23 01[0 1 23]* (012 34)* 01(23 4)5*1: 1: |",
         Rule::Pattern,
     )
     .unwrap();
@@ -17,7 +17,7 @@ fn interpret_pattern_complex() {
 }
 
 #[test]
-fn interpret_event_group_pitch() {
+fn interpret_event_group() {
     use types::*;
 
     let mut context = Context::default();
@@ -29,7 +29,6 @@ fn interpret_event_group_pitch() {
         event,
         beat: 0,
         octave: Rc::new(RefCell::new(octave)),
-        octave_change: None,
         position: 0.0,
     };
 
@@ -40,12 +39,14 @@ fn interpret_event_group_pitch() {
                 duration: 3.0,
                 octave: None,
                 position: 0.0,
+                beat: 0,
             },
             IntermediateEvent {
                 value: Audible::Tie,
                 duration: 0.5,
                 octave: None,
                 position: 3.0,
+                beat: 0,
             }
         ],
         event_interpreter.interpret(&mut context).unwrap()

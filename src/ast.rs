@@ -583,7 +583,6 @@ pub enum Event {
     Group(Vec<PatternAtom>),
     Chord(Chord),
     ParenthesisedEvent(ParenthesisedEvent),
-    EventMethod(EventMethod),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -609,7 +608,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Event {
             Rule::ParenthesisedEventGroup => {
                 Self::from_parenthesised_event(inner)
             }
-            Rule::EventMethod => Self::from_event_method(inner),
             _ => CollyParser::rule_error(&inner),
         }
     }
@@ -659,10 +657,6 @@ impl Event {
             inner: groups,
             methods,
         }))
-    }
-
-    fn from_event_method(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        Ok(Event::EventMethod(pair.try_into()?))
     }
 }
 
