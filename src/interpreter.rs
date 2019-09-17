@@ -267,7 +267,9 @@ impl EventInterpreter {
         );
 
         for atom in atoms.into_iter() {
-            atom_interpreter.interpret(atom, &mut output)?;
+            if let Some(intermediate) = atom_interpreter.interpret(atom)? {
+                output.push(intermediate);
+            }
         }
 
         Ok(output)
@@ -305,7 +307,7 @@ impl AtomInterpreter {
         position: f64,
     ) -> Self {
         Self {
-            octave: octave.clone(),
+            octave,
             beat,
             position,
             ..Default::default()
@@ -316,21 +318,22 @@ impl AtomInterpreter {
     fn interpret(
         &mut self,
         atom: ast::PatternAtom,
-        output: &mut Vec<IntermediateEvent>,
-    ) -> InterpreterResult<()> {
+    ) -> InterpreterResult<Option<IntermediateEvent>> {
         match atom.value {
             ast::PatternAtomValue::Octave(octave) => {
-                Ok(self.interpret_octave_change(octave))
+                self.interpret_octave_change(octave);
+                Ok(None)
             }
-            ast::PatternAtomValue::Tie => Ok(output
-                .push(self.next_intermediate(Audible::Tie, &atom.methods))),
+            ast::PatternAtomValue::Tie => {
+                Ok(Some(self.next_intermediate(Audible::Tie, &atom.methods)))
+            }
             ast::PatternAtomValue::Note(note) => {
                 let value = Audible::Degree(self.interpret_note(note));
-                Ok(output.push(self.next_intermediate(value, &atom.methods)))
+                Ok(Some(self.next_intermediate(value, &atom.methods)))
             }
             ast::PatternAtomValue::Pause => {
                 let value = Audible::Pause;
-                Ok(output.push(self.next_intermediate(value, &atom.methods)))
+                Ok(Some(self.next_intermediate(value, &atom.methods)))
             }
             ast::PatternAtomValue::MacroTarget => unimplemented!(),
             ast::PatternAtomValue::Modulation(modulation) => unimplemented!(),
