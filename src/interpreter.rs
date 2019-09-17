@@ -80,8 +80,10 @@ impl Interpreter<Value> for ast::Expression {
         use ast::Expression;
         match self {
             Expression::Boolean(value) => Ok(Value::from(value)),
-            Expression::Identifier(value) => Ok(Value::from(value)),
-            Expression::Variable(id) => Ok(context.variables.get(&id)),
+            Expression::Identifier(value) => {
+                Ok(Value::from(Identifier::from(value)))
+            }
+            Expression::Variable(id) => Ok(context.variables.get(&id.into())),
             Expression::Pattern(value) => {
                 Ok(Value::from(value.interpret(context)?))
             }
@@ -103,6 +105,12 @@ impl Interpreter<Value> for ast::Expression {
             // Function(FunctionExpression),
             _ => unimplemented!(),
         }
+    }
+}
+
+impl From<ast::Identifier> for Identifier {
+    fn from(id: ast::Identifier) -> Self {
+        Self(id.0)
     }
 }
 
@@ -191,7 +199,7 @@ impl Node for BeatEventInterpreter {
 
 impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
     fn interpret(
-        mut self,
+        self,
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
@@ -241,6 +249,7 @@ impl IntermediateEvent {
             Audible::Degree(degree) => unimplemented!(),
             Audible::Modulation(modulation) => unimplemented!(),
             Audible::Pause => (),
+            Audible::Tie => unreachable!(),
         }
     }
 }
@@ -250,6 +259,7 @@ enum Audible {
     Degree(types::Degree),
     Modulation(types::Modulation),
     Pause,
+    Tie,
 }
 
 impl Node for EventInterpreter {
@@ -300,7 +310,8 @@ impl EventInterpreter {
             ast::PatternAtomValue::Octave(octave) => {
                 Ok(self.interpret_octave_change(octave))
             }
-            ast::PatternAtomValue::Tie => unimplemented!(),
+            ast::PatternAtomValue::Tie => Ok(output
+                .push(self.next_intermediate(Audible::Tie, &atom.methods))),
             ast::PatternAtomValue::Note(note) => {
                 let value = Audible::Degree(self.interpret_note(note));
                 Ok(output.push(self.next_intermediate(value, &atom.methods)))

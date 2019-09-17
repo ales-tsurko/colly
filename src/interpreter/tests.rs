@@ -22,7 +22,7 @@ fn interpret_event_group_pitch() {
 
     let mut context = Context::default();
     let event: ast::Event =
-        CollyParser::parse_source_for_rule("a*.0:", Rule::Event).unwrap();
+        CollyParser::parse_source_for_rule("a*._:", Rule::Event).unwrap();
     let octave = Octave::default();
     let event_interpreter = EventInterpreter {
         depth: 0,
@@ -42,7 +42,7 @@ fn interpret_event_group_pitch() {
                 position: 0.0,
             },
             IntermediateEvent {
-                value: Audible::Degree(Degree::default()),
+                value: Audible::Tie,
                 duration: 0.5,
                 octave: None,
                 position: 3.0,
