@@ -147,19 +147,8 @@ impl Interpreter<types::Pattern> for ast::Pattern {
         self,
         context: &mut Context<'_>,
     ) -> InterpreterResult<types::Pattern> {
-        let octave = Rc::new(RefCell::new(types::Octave::default()));
-        let mut intermediates: Vec<IntermediateEvent> = Vec::new();
-        for (beat, beat_event) in self.0.into_iter().enumerate() {
-            intermediates.append(
-                &mut BeatEventInterpreter {
-                    depth: 0,
-                    beat,
-                    beat_event,
-                    octave: octave.clone(),
-                }
-                .interpret(context)?,
-            );
-        }
+        let inner_interpreter = PatternInnerInterpreter::new(self.0);
+        let intermediates = inner_interpreter.interpret(context)?;
 
         let mut pattern =
             types::Pattern::new(context.mixer.clock.cursor().clone());
@@ -169,32 +158,69 @@ impl Interpreter<types::Pattern> for ast::Pattern {
     }
 }
 
-trait Node {
-    fn beat(&self) -> usize;
+#[derive(Debug, Default)]
+struct PatternInnerInterpreter {
+    depth: usize,
+    octave: Rc<RefCell<types::Octave>>,
+    inner: Vec<ast::BeatEvent>,
+}
 
-    fn depth(&self) -> usize;
+impl PatternInnerInterpreter {
+    fn new(inner: Vec<ast::BeatEvent>) -> Self {
+        PatternInnerInterpreter {
+            inner,
+            ..Default::default()
+        }
+    }
 
-    fn duration_divisor(&self) -> usize {
-        (self.depth() + 1).pow(2)
+    fn normalize_intermediates(
+        &self,
+        intermediates: Vec<IntermediateEvent>,
+    ) -> Vec<IntermediateEvent> {
+        let mut divisor = intermediates
+            .iter()
+            .fold(0.0, |acc, event| acc + event.duration);
+        divisor *= (self.depth + 1).pow(2) as f64;
+
+        intermediates
+            .into_iter()
+            .map(|mut event| {
+                event.duration /= divisor;
+                event.position /= divisor;
+                event
+            })
+            .collect()
+    }
+}
+
+impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
+    fn interpret(
+        self,
+        context: &mut Context<'_>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        let mut intermediates: Vec<IntermediateEvent> = Vec::new();
+        for (beat, event) in self.inner.iter().enumerate() {
+            let events = BeatEventInterpreter {
+                depth: 0,
+                beat,
+                event: event.clone(),
+                octave: self.octave.clone(),
+            }
+            .interpret(context)?;
+
+            intermediates.append(&mut self.normalize_intermediates(events));
+        }
+
+        Ok(intermediates)
     }
 }
 
 #[derive(Debug, Clone)]
 struct BeatEventInterpreter {
     depth: usize,
-    beat_event: ast::BeatEvent,
+    event: ast::BeatEvent,
     beat: usize,
     octave: Rc<RefCell<types::Octave>>,
-}
-
-impl Node for BeatEventInterpreter {
-    fn depth(&self) -> usize {
-        self.depth
-    }
-
-    fn beat(&self) -> usize {
-        self.beat
-    }
 }
 
 impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
@@ -203,12 +229,12 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
-        for event in self.clone().beat_event.0 {
+        for event in self.clone().event.0 {
             output.append(
                 &mut EventInterpreter {
-                    depth: self.depth(),
+                    depth: self.depth,
                     event,
-                    beat: self.beat(),
+                    beat: self.beat,
                     octave: self.octave.clone(),
                     position: 0.0,
                 }
@@ -227,16 +253,6 @@ struct EventInterpreter {
     beat: usize,
     octave: Rc<RefCell<types::Octave>>,
     position: f64,
-}
-
-impl Node for EventInterpreter {
-    fn depth(&self) -> usize {
-        self.depth
-    }
-
-    fn beat(&self) -> usize {
-        self.beat
-    }
 }
 
 impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
@@ -262,7 +278,7 @@ impl EventInterpreter {
         let mut output: Vec<IntermediateEvent> = Vec::new();
         let mut atom_interpreter = AtomInterpreter::new(
             self.octave.clone(),
-            self.beat(),
+            self.beat,
             self.position,
         );
 
