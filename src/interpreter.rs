@@ -458,6 +458,10 @@ impl IntermediateEvent {
             Audible::Degree(degree) => unimplemented!(),
             Audible::Modulation(modulation) => unimplemented!(),
             Audible::Pause => (),
+            // TODO: there must haven't been any ties at this stage,
+            // because they should be handled in the Pattern interpreter
+            // but there is a place for a human mistake, so let's
+            // think: how to do it better?
             Audible::Tie => unreachable!(),
         }
     }

@@ -105,6 +105,7 @@ impl Pattern {
         self.start_position
     }
 
+    #[allow(clippy::type_complexity)]
     fn next_degree_and_modulation(
         &mut self,
     ) -> Option<(Vec<Event<Degree>>, Vec<Event<Modulation>>)> {
@@ -175,6 +176,21 @@ impl Pattern {
             .collect()
     }
 
+    fn init_next_values(
+        &mut self,
+        degree: Vec<Event<Degree>>,
+        modulation: Vec<Event<Modulation>>,
+    ) -> Vec<Event<Value>> {
+        let pitches = self.next_pitches(degree).into_iter();
+        modulation
+            .into_iter()
+            .map(|m| {
+                Event::new(Value::from(m.value), self.cursor.position, m.state)
+            })
+            .chain(pitches)
+            .collect()
+    }
+
     impl_schedule_method!(schedule_degree, degree, Degree);
     impl_schedule_method!(schedule_scale, scale, Scale);
     impl_schedule_method!(schedule_root, root, Root);
@@ -189,19 +205,7 @@ impl Iterator for Pattern {
         let result =
             self.next_degree_and_modulation()
                 .map(|(degree, modulation)| {
-                    let mut modulations: Vec<Event<Value>> = modulation
-                        .into_iter()
-                        .map(|m| {
-                            Event::new(
-                                Value::from(m.value),
-                                self.cursor.position,
-                                m.state,
-                            )
-                        })
-                        .collect();
-                    modulations.append(&mut self.next_pitches(degree));
-
-                    modulations
+                    self.init_next_values(degree, modulation)
                 });
 
         self.cursor.next();
@@ -502,10 +506,10 @@ pub struct Scale {
 }
 
 impl Scale {
-    pub fn new(name: &str, pitch_set: &Vec<u64>) -> Self {
+    pub fn new(name: &str, pitch_set: &[u64]) -> Self {
         Scale {
             name: name.to_string(),
-            pitch_set: pitch_set.clone(),
+            pitch_set: pitch_set.to_vec(),
         }
     }
 }
