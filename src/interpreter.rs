@@ -264,7 +264,7 @@ impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
             ast::Event::Group(atoms) => self.interpret_group(atoms),
             ast::Event::Chord(chord) => self.interpret_chord(chord),
             ast::Event::ParenthesisedEvent(event) => {
-                self.interpret_parenthesised(event)
+                self.interpret_parenthesised(event, context)
             }
         }
     }
@@ -276,11 +276,8 @@ impl EventInterpreter {
         atoms: Vec<ast::PatternAtom>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
-        let mut atom_interpreter = AtomInterpreter::new(
-            self.octave.clone(),
-            self.beat,
-            self.position,
-        );
+        let mut atom_interpreter =
+            AtomInterpreter::new(self.octave.clone(), self.beat, self.position);
 
         for atom in atoms.into_iter() {
             if let Some(intermediate) = atom_interpreter.interpret(atom)? {
@@ -294,10 +291,23 @@ impl EventInterpreter {
     fn interpret_parenthesised(
         self,
         event: ast::ParenthesisedEvent,
+        context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        for event in event.inner {}
+        let inner_interpreter = PatternInnerInterpreter::new(event.inner);
+        let intermediates = inner_interpreter.interpret(context)?;
+        let methods_modifier =
+            AtomInterpreter::interpret_methods(1.0, &event.methods);
 
-        unimplemented!()
+        Ok(intermediates
+            .into_iter()
+            .map(|mut event| {
+                event.duration *= methods_modifier;
+                event.position *= methods_modifier;
+                event.position += self.position;
+                event.beat = self.beat;
+                event
+            })
+            .collect())
     }
 
     fn interpret_chord(
