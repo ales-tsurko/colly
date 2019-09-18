@@ -293,7 +293,8 @@ impl EventInterpreter {
         event: ast::ParenthesisedEvent,
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let inner_interpreter = PatternInnerInterpreter::new(event.inner);
+        let mut inner_interpreter = PatternInnerInterpreter::new(event.inner);
+        inner_interpreter.depth = self.depth + 1;
         let intermediates = inner_interpreter.interpret(context)?;
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
