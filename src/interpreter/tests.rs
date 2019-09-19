@@ -233,10 +233,75 @@ fn interpret_parenthesised_group() {
     );
 }
 
-#[ignore]
 #[test]
 fn interpret_parenthesised_group_recursive() {
-    assert!(false);
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("(0(00)00 12)", Rule::Event).unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: 0.0,
+    };
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.125,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.0625,
+                octave: None,
+                beat_position: 0.125,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.0625,
+                octave: None,
+                beat_position: 0.1875,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.125,
+                octave: None,
+                beat_position: 0.25,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.125,
+                octave: None,
+                beat_position: 0.375,
+                beat: 0,
+            },
+
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(1)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.5,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.75,
+                beat: 0,
+            },
+        ],
+        event_interpreter.interpret(&mut context).unwrap()
+    );
 }
 
 #[ignore]
