@@ -160,7 +160,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
 
 #[derive(Debug, Default)]
 struct PatternInnerInterpreter {
-    depth: usize,
+    depth: u32,
     octave: Rc<RefCell<types::Octave>>,
     inner: Vec<ast::BeatEvent>,
 }
@@ -180,13 +180,13 @@ impl PatternInnerInterpreter {
         let mut divisor = intermediates
             .iter()
             .fold(0.0, |acc, event| acc + event.duration);
-        divisor *= (self.depth + 1).pow(2) as f64;
+        divisor *= 2u64.pow(self.depth) as f64;
 
         intermediates
             .into_iter()
             .map(|mut event| {
                 event.duration /= divisor;
-                event.position /= divisor;
+                event.beat_position /= divisor;
                 event
             })
             .collect()
@@ -202,7 +202,7 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
         for (beat, event) in self.inner.iter().enumerate() {
             let events = BeatEventInterpreter {
                 depth: 0,
-                beat,
+                beat: beat as u64,
                 event: event.clone(),
                 octave: self.octave.clone(),
             }
@@ -217,9 +217,9 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
 
 #[derive(Debug, Clone)]
 struct BeatEventInterpreter {
-    depth: usize,
+    depth: u32,
     event: ast::BeatEvent,
-    beat: usize,
+    beat: u64,
     octave: Rc<RefCell<types::Octave>>,
 }
 
@@ -236,7 +236,7 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
                     event,
                     beat: self.beat,
                     octave: self.octave.clone(),
-                    position: 0.0,
+                    beat_position: 0.0,
                 }
                 .interpret(context)?,
             );
@@ -249,10 +249,10 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
 #[derive(Debug, Clone)]
 struct EventInterpreter {
     event: ast::Event,
-    depth: usize,
-    beat: usize,
+    depth: u32,
+    beat: u64,
     octave: Rc<RefCell<types::Octave>>,
-    position: f64,
+    beat_position: f64,
 }
 
 impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
@@ -276,8 +276,11 @@ impl EventInterpreter {
         atoms: Vec<ast::PatternAtom>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
-        let mut atom_interpreter =
-            AtomInterpreter::new(self.octave.clone(), self.beat, self.position);
+        let mut atom_interpreter = AtomInterpreter::new(
+            self.octave.clone(),
+            self.beat,
+            self.beat_position,
+        );
 
         for atom in atoms.into_iter() {
             if let Some(intermediate) = atom_interpreter.interpret(atom)? {
@@ -298,13 +301,14 @@ impl EventInterpreter {
         let intermediates = inner_interpreter.interpret(context)?;
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
+        let mut position = self.beat_position * methods_modifier;
 
         Ok(intermediates
             .into_iter()
             .map(|mut event| {
                 event.duration *= methods_modifier;
-                event.position *= methods_modifier;
-                event.position += self.position;
+                event.beat_position = position;
+                position += event.duration;
                 event.beat = self.beat;
                 event
             })
@@ -324,13 +328,13 @@ struct AtomInterpreter {
     octave: Rc<RefCell<types::Octave>>,
     octave_change: Option<types::Octave>,
     position: f64,
-    beat: usize,
+    beat: u64,
 }
 
 impl AtomInterpreter {
     fn new(
         octave: Rc<RefCell<types::Octave>>,
-        beat: usize,
+        beat: u64,
         position: f64,
     ) -> Self {
         Self {
@@ -393,7 +397,7 @@ impl AtomInterpreter {
             value,
             duration,
             octave: self.octave_change.take(),
-            position: self.position,
+            beat_position: self.position,
             beat: self.beat,
         };
         self.position += duration;
@@ -436,8 +440,8 @@ struct IntermediateEvent {
     value: Audible,
     octave: Option<types::Octave>,
     duration: f64,
-    position: f64,
-    beat: usize,
+    beat_position: f64,
+    beat: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
