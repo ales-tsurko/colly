@@ -28,7 +28,7 @@ fn interpret_event_group_methods() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -37,7 +37,7 @@ fn interpret_event_group_methods() {
                 value: Audible::Degree(Degree::from(10)),
                 duration: 3.0,
                 octave: None,
-                beat_position: 0.0,
+                beat_position: Default::default(),
                 beat: 0,
             },
             IntermediateEvent {
@@ -63,7 +63,7 @@ fn interpret_event_group_alterations() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -104,7 +104,7 @@ fn interpret_event_group_octaves() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -139,19 +139,17 @@ fn interpret_parenthesised_group_single() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
-        vec![
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(0)),
-                duration: 1.0,
-                octave: None,
-                beat_position: 0.0,
-                beat: 0,
-            },
-        ],
+        vec![IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 1.0,
+            octave: None,
+            beat_position: 0.0,
+            beat: 0,
+        },],
         event_interpreter.interpret(&mut context).unwrap()
     );
 }
@@ -167,7 +165,7 @@ fn interpret_parenthesised_group_simple() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -202,7 +200,7 @@ fn interpret_parenthesised_group() {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -239,12 +237,13 @@ fn interpret_parenthesised_group_recursive() {
 
     let mut context = Context::default();
     let event: ast::Event =
-        CollyParser::parse_source_for_rule("(0(00)00 12)", Rule::Event).unwrap();
+        CollyParser::parse_source_for_rule("(0(00)00 12)", Rule::Event)
+            .unwrap();
     let event_interpreter = EventInterpreter {
         event,
         beat: 0,
         octave: Default::default(),
-        beat_position: 0.0,
+        beat_position: Default::default(),
     };
 
     assert_eq!(
@@ -284,7 +283,6 @@ fn interpret_parenthesised_group_recursive() {
                 beat_position: 0.375,
                 beat: 0,
             },
-
             IntermediateEvent {
                 value: Audible::Degree(Degree::from(1)),
                 duration: 0.25,
@@ -302,12 +300,6 @@ fn interpret_parenthesised_group_recursive() {
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
-}
-
-#[ignore]
-#[test]
-fn interpret_mixed_beat_event() {
-    assert!(false);
 }
 
 #[test]
@@ -380,13 +372,65 @@ fn interpret_pattern_inner_methods() {
         },
     ];
 
-    assert_eq!(expected, result);;
+    assert_eq!(expected, result);
 }
 
-#[ignore]
 #[test]
 fn interpret_pattern_inner_parenthesised() {
-    assert!(false);
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| 0(11 1)00 |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+    let result = inner_interpreter.interpret(&mut context).unwrap();
+    let expected = vec![
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 0.25,
+            octave: None,
+            beat_position: 0.0,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(1)),
+            duration: 0.0625,
+            octave: None,
+            beat_position: 0.25,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(1)),
+            duration: 0.0625,
+            octave: None,
+            beat_position: 0.3125,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(1)),
+            duration: 0.125,
+            octave: None,
+            beat_position: 0.375,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 0.25,
+            octave: None,
+            beat_position: 0.5,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 0.25,
+            octave: None,
+            beat_position: 0.75,
+            beat: 0,
+        },
+    ];
+
+    assert_eq!(expected, result);
 }
 
 #[ignore]

@@ -180,7 +180,9 @@ impl PatternInnerInterpreter {
         let mut divisor = intermediates
             .iter()
             .fold(0.0, |acc, event| acc + event.duration);
-        divisor *= self.divisor_multiplier as f64;
+        if self.divisor_multiplier > 0 {
+            divisor *= self.divisor_multiplier as f64;
+        }
 
         intermediates
             .into_iter()
@@ -227,13 +229,14 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut output: Vec<IntermediateEvent> = Vec::new();
+        let beat_position = Rc::new(RefCell::new(0.0));
         for event in self.clone().event.0 {
             output.append(
                 &mut EventInterpreter {
                     event,
                     beat: self.beat,
                     octave: self.octave.clone(),
-                    beat_position: 0.0,
+                    beat_position: beat_position.clone(),
                 }
                 .interpret(context)?,
             );
@@ -248,7 +251,7 @@ struct EventInterpreter {
     event: ast::Event,
     beat: u64,
     octave: Rc<RefCell<types::Octave>>,
-    beat_position: f64,
+    beat_position: Rc<RefCell<f64>>,
 }
 
 impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
@@ -275,7 +278,7 @@ impl EventInterpreter {
         let mut atom_interpreter = AtomInterpreter::new(
             self.octave.clone(),
             self.beat,
-            self.beat_position,
+            self.beat_position.clone(),
         );
 
         for atom in atoms.into_iter() {
@@ -296,16 +299,17 @@ impl EventInterpreter {
         let mut inner_interpreter = PatternInnerInterpreter::new(event.inner);
         inner_interpreter.divisor_multiplier = num_of_beats;
         let intermediates = inner_interpreter.interpret(context)?;
+
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
-        let mut position = self.beat_position * methods_modifier;
+        let mut beat_position = self.beat_position.borrow_mut();
 
         Ok(intermediates
             .into_iter()
             .map(|mut event| {
                 event.duration *= methods_modifier;
-                event.beat_position = position;
-                position += event.duration;
+                event.beat_position = *beat_position;
+                *beat_position += event.duration;
                 event.beat = self.beat;
                 event
             })
@@ -324,7 +328,7 @@ impl EventInterpreter {
 struct AtomInterpreter {
     octave: Rc<RefCell<types::Octave>>,
     octave_change: Option<types::Octave>,
-    position: f64,
+    position: Rc<RefCell<f64>>,
     beat: u64,
 }
 
@@ -332,7 +336,7 @@ impl AtomInterpreter {
     fn new(
         octave: Rc<RefCell<types::Octave>>,
         beat: u64,
-        position: f64,
+        position: Rc<RefCell<f64>>,
     ) -> Self {
         Self {
             octave,
@@ -390,14 +394,15 @@ impl AtomInterpreter {
         methods: &[ast::EventMethod],
     ) -> IntermediateEvent {
         let duration = AtomInterpreter::interpret_methods(1.0, methods);
+        let mut beat_position = self.position.borrow_mut();
         let intermediate = IntermediateEvent {
             value,
             duration,
             octave: self.octave_change.take(),
-            beat_position: self.position,
+            beat_position: *beat_position,
             beat: self.beat,
         };
-        self.position += duration;
+         *beat_position += duration;
 
         intermediate
     }
