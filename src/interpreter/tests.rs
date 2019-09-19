@@ -25,7 +25,6 @@ fn interpret_event_group_methods() {
     let event: ast::Event =
         CollyParser::parse_source_for_rule("a*._:", Rule::Event).unwrap();
     let event_interpreter = EventInterpreter {
-        depth: 0,
         event,
         beat: 0,
         octave: Default::default(),
@@ -61,7 +60,6 @@ fn interpret_event_group_alterations() {
     let event: ast::Event =
         CollyParser::parse_source_for_rule("++a-+--b", Rule::Event).unwrap();
     let event_interpreter = EventInterpreter {
-        depth: 0,
         event,
         beat: 0,
         octave: Default::default(),
@@ -103,7 +101,6 @@ fn interpret_event_group_octaves() {
     let event: ast::Event =
         CollyParser::parse_source_for_rule("OOaooob", Rule::Event).unwrap();
     let event_interpreter = EventInterpreter {
-        depth: 0,
         event,
         beat: 0,
         octave: Default::default(),
@@ -132,8 +129,66 @@ fn interpret_event_group_octaves() {
 }
 
 #[test]
+fn interpret_parenthesised_group_single() {
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("(0)", Rule::Event).unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: 0.0,
+    };
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+        ],
+        event_interpreter.interpret(&mut context).unwrap()
+    );
+}
+
+#[test]
 fn interpret_parenthesised_group_simple() {
-    assert!(false);
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("(00)", Rule::Event).unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: 0.0,
+    };
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.5,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.5,
+                octave: None,
+                beat_position: 0.5,
+                beat: 0,
+            }
+        ],
+        event_interpreter.interpret(&mut context).unwrap()
+    );
 }
 
 #[test]
@@ -144,7 +199,6 @@ fn interpret_parenthesised_group() {
     let event: ast::Event =
         CollyParser::parse_source_for_rule("(ab 0)", Rule::Event).unwrap();
     let event_interpreter = EventInterpreter {
-        depth: 0,
         event,
         beat: 0,
         octave: Default::default(),
@@ -179,8 +233,15 @@ fn interpret_parenthesised_group() {
     );
 }
 
+#[ignore]
 #[test]
-fn interpret_mixed_event() { 
+fn interpret_parenthesised_group_recursive() {
+    assert!(false);
+}
+
+#[ignore]
+#[test]
+fn interpret_mixed_beat_event() {
     assert!(false);
 }
 
@@ -257,11 +318,13 @@ fn interpret_pattern_inner_methods() {
     assert_eq!(expected, result);;
 }
 
+#[ignore]
 #[test]
 fn interpret_pattern_inner_parenthesised() {
     assert!(false);
 }
 
+#[ignore]
 #[test]
 fn interpret_pattern_inner_ties() {
     assert!(false);

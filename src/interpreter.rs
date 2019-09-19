@@ -160,7 +160,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
 
 #[derive(Debug, Default)]
 struct PatternInnerInterpreter {
-    depth: u32,
+    divisor_multiplier: usize,
     octave: Rc<RefCell<types::Octave>>,
     inner: Vec<ast::BeatEvent>,
 }
@@ -180,7 +180,7 @@ impl PatternInnerInterpreter {
         let mut divisor = intermediates
             .iter()
             .fold(0.0, |acc, event| acc + event.duration);
-        divisor *= 2u64.pow(self.depth) as f64;
+        divisor *= self.divisor_multiplier as f64;
 
         intermediates
             .into_iter()
@@ -201,7 +201,6 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
         let mut intermediates: Vec<IntermediateEvent> = Vec::new();
         for (beat, event) in self.inner.iter().enumerate() {
             let events = BeatEventInterpreter {
-                depth: 0,
                 beat: beat as u64,
                 event: event.clone(),
                 octave: self.octave.clone(),
@@ -217,7 +216,6 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
 
 #[derive(Debug, Clone)]
 struct BeatEventInterpreter {
-    depth: u32,
     event: ast::BeatEvent,
     beat: u64,
     octave: Rc<RefCell<types::Octave>>,
@@ -232,7 +230,6 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
         for event in self.clone().event.0 {
             output.append(
                 &mut EventInterpreter {
-                    depth: self.depth,
                     event,
                     beat: self.beat,
                     octave: self.octave.clone(),
@@ -249,7 +246,6 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
 #[derive(Debug, Clone)]
 struct EventInterpreter {
     event: ast::Event,
-    depth: u32,
     beat: u64,
     octave: Rc<RefCell<types::Octave>>,
     beat_position: f64,
@@ -296,8 +292,9 @@ impl EventInterpreter {
         event: ast::ParenthesisedEvent,
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        let num_of_beats = event.inner.len();
         let mut inner_interpreter = PatternInnerInterpreter::new(event.inner);
-        inner_interpreter.depth = self.depth + 1;
+        inner_interpreter.divisor_multiplier = num_of_beats;
         let intermediates = inner_interpreter.interpret(context)?;
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
