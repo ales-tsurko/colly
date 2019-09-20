@@ -198,8 +198,8 @@ impl PatternInnerInterpreter {
         intermediates: Vec<IntermediateEvent>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         Ok(intermediates
-            .clone()
-            .into_iter()
+            .iter()
+            .cloned()
             .enumerate()
             .filter(|(_, event)| event.value != Audible::Tie)
             .map(|(mut n, mut event)| {
