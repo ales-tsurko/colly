@@ -332,16 +332,15 @@ impl EventInterpreter {
 
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
-        let mut beat_position = self.beat_position.borrow_mut();
 
         Ok(intermediates
             .into_iter()
-            .map(|mut event| {
+            .scan(self.beat_position.borrow_mut(), |position, mut event| {
                 event.duration *= methods_modifier;
-                event.beat_position = *beat_position;
-                *beat_position += event.duration;
+                event.beat_position = **position;
+                **position += event.duration;
                 event.beat = self.beat;
-                event
+                Some(event)
             })
             .collect())
     }
