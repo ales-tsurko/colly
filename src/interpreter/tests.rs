@@ -433,8 +433,52 @@ fn interpret_pattern_inner_parenthesised() {
     assert_eq!(expected, result);
 }
 
-#[ignore]
 #[test]
 fn interpret_pattern_inner_ties() {
-    assert!(false);
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| 0_0_ _ 0 |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+    let result = inner_interpreter.interpret(&mut context).unwrap();
+    let expected = vec![
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 0.5,
+            octave: None,
+            beat_position: 0.0,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 1.5,
+            octave: None,
+            beat_position: 0.5,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 1.0,
+            octave: None,
+            beat_position: 0.0,
+            beat: 2,
+        },
+    ];
+
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn interpret_pattern_inner_lonely_tie() {
+    let mut context = Context::default();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| _ 0 |", Rule::Pattern).unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+
+    assert_eq!(
+        Err(InterpreterError::LonelyTie),
+        inner_interpreter.interpret(&mut context)
+    );
 }

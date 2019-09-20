@@ -193,6 +193,39 @@ impl PatternInnerInterpreter {
             })
             .collect()
     }
+
+    fn handle_ties(
+        &self,
+        intermediates: Vec<IntermediateEvent>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        if !intermediates.is_empty() && intermediates[0].value == Audible::Tie {
+            return Err(InterpreterError::LonelyTie);
+        }
+
+        Ok(intermediates
+            .clone()
+            .into_iter()
+            .enumerate()
+            .filter(|(_, event)| event.value != Audible::Tie)
+            .map(|(mut n, mut event)| {
+                if intermediates.is_empty() {
+                    return event;
+                }
+
+                while intermediates.len() - 1 > n {
+                    n += 1;
+                    let next_event = &intermediates[n];
+                    if let Audible::Tie = next_event.value {
+                        event.duration += next_event.duration;
+                    } else {
+                        break;
+                    }
+                }
+
+                event
+            })
+            .collect())
+    }
 }
 
 impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
@@ -212,7 +245,7 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
             intermediates.append(&mut self.normalize_intermediates(events));
         }
 
-        Ok(intermediates)
+        self.handle_ties(intermediates)
     }
 }
 
@@ -402,7 +435,7 @@ impl AtomInterpreter {
             beat_position: *beat_position,
             beat: self.beat,
         };
-         *beat_position += duration;
+        *beat_position += duration;
 
         intermediate
     }
@@ -473,8 +506,10 @@ impl IntermediateEvent {
     }
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq)]
 pub enum InterpreterError {
     #[fail(display = "Error during interpretation of {}: {}", 0, 1)]
     Rule(String, String),
+    #[fail(display = "A tie must have a root event, which it prolongs.")]
+    LonelyTie,
 }
