@@ -823,6 +823,13 @@ fn test_parse_event_as_event_method() {
     result.unwrap();
 }
 
+#[should_panic]
+#[test]
+fn parse_lonely_tie() {
+    let result: ParseResult<Pattern> = CollyParser::parse_source_for_rule("| _ 0 |", Rule::Pattern);
+    result.unwrap();
+}
+
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {

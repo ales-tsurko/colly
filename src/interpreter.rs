@@ -197,10 +197,6 @@ impl PatternInnerInterpreter {
         &self,
         intermediates: Vec<IntermediateEvent>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        if !intermediates.is_empty() && intermediates[0].value == Audible::Tie {
-            return Err(InterpreterError::LonelyTie);
-        }
-
         Ok(intermediates
             .clone()
             .into_iter()
@@ -506,6 +502,4 @@ impl IntermediateEvent {
 pub enum InterpreterError {
     #[fail(display = "Error during interpretation of {}: {}", 0, 1)]
     Rule(String, String),
-    #[fail(display = "A tie must have a root event, which it prolongs.")]
-    LonelyTie,
 }

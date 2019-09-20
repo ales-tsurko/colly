@@ -65,7 +65,7 @@ PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
 PatternExpression = { Pattern ~ PatternMacro? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
 PatternMacro = { FunctionExpression }
-Pattern = { "|" ~ BeatEvent* ~  "|" }
+Pattern = { "|" ~ !Tie ~ BeatEvent* ~  "|" }
 BeatEvent = ${ Event+ }
 Event = { Group | Chord | ParenthesisedEventGroup }
 ParenthesisedEventGroup = ${ "(" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ ")" ~ EventMethod* }

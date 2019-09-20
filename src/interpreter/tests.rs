@@ -469,16 +469,3 @@ fn interpret_pattern_inner_ties() {
 
     assert_eq!(expected, result);
 }
-
-#[test]
-fn interpret_pattern_inner_lonely_tie() {
-    let mut context = Context::default();
-    let pattern: ast::Pattern =
-        CollyParser::parse_source_for_rule("| _ 0 |", Rule::Pattern).unwrap();
-    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
-
-    assert_eq!(
-        Err(InterpreterError::LonelyTie),
-        inner_interpreter.interpret(&mut context)
-    );
-}
