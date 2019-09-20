@@ -3,7 +3,6 @@ mod tests;
 
 use crate::{
     ast,
-    clock::{Clock, CursorPosition},
     types::{self, Function, Identifier, Mixer, Value},
 };
 
@@ -212,14 +211,12 @@ impl PatternInnerInterpreter {
                     return event;
                 }
 
-                while intermediates.len() - 1 > n {
-                    n += 1;
-                    let next_event = &intermediates[n];
-                    if let Audible::Tie = next_event.value {
-                        event.duration += next_event.duration;
-                    } else {
-                        break;
+                while let Some(next_event) = intermediates.get(n + 1) {
+                    match next_event.value {
+                        Audible::Tie => event.duration += next_event.duration,
+                        _ => break,
                     }
+                    n += 1;
                 }
 
                 event
@@ -470,7 +467,7 @@ impl AtomInterpreter {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 struct IntermediateEvent {
     value: Audible,
     octave: Option<types::Octave>,
@@ -479,7 +476,7 @@ struct IntermediateEvent {
     beat: u64,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Audible {
     Degree(types::Degree),
     Modulation(types::Modulation),
