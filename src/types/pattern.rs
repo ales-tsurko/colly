@@ -4,6 +4,9 @@ use crate::clock::{Cursor, CursorPosition, Duration};
 
 use serde_derive::Deserialize;
 
+const DEFAULT_SCALE_NAME: &str = "Chromatic";
+const DEFAULT_PITCH_SET: [u64; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
 /// Pattern combines several [EventStream](struct.EventStream.html)s
 /// and produces [Value](enum.Value.html)s for current [Cursor](../clock/struct.Cursor.html)
 /// position on each Pattern::next call.
@@ -227,12 +230,15 @@ pub struct EventStream<T: Clone + Debug + Default> {
     /// if there were previously no any.
     pub fill_gaps: bool,
     gap_value: Vec<Event<T>>,
+    is_sorted: bool,
 }
 
 impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
     type Item = Vec<Event<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.sort();
+        
         if self.events.is_empty()
             || (self.increment >= self.events.len() && !self.is_loop)
         {
@@ -266,13 +272,16 @@ impl<T: Clone + Debug + Default> EventStream<T> {
     }
 
     fn sort(&mut self) {
-        self.events.sort_by(|a, b| a.position.cmp(&b.position));
+        if !self.is_sorted {
+            self.events.sort_by(|a, b| a.position.cmp(&b.position));
+            self.is_sorted = true;
+        }
     }
 
     /// Add (schedule) [Event](struct.Event.html) to the stream.
     pub fn add_event(&mut self, event: Event<T>) {
         self.events.push(event);
-        self.sort();
+        self.is_sorted = false;
     }
 
     /// Get [CursorPosition](../clock/struct.CursorPosition.html) of the last event.
@@ -517,8 +526,8 @@ impl Scale {
 impl Default for Scale {
     fn default() -> Self {
         Scale {
-            name: "Chromatic".to_string(),
-            pitch_set: (0..12).collect(),
+            name: DEFAULT_SCALE_NAME.to_string(),
+            pitch_set: DEFAULT_PITCH_SET.to_vec().clone(),
         }
     }
 }
