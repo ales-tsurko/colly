@@ -33,20 +33,20 @@ fn interpret_event_group_methods() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(10)),
                 duration: 3.0,
                 octave: None,
                 beat_position: Default::default(),
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Tie,
                 duration: 0.5,
                 octave: None,
                 beat_position: 3.0,
                 beat: 0,
-            }
+            })
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -68,7 +68,7 @@ fn interpret_event_group_alterations() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree {
                     value: 10,
                     alteration: 2,
@@ -77,8 +77,8 @@ fn interpret_event_group_alterations() {
                 octave: None,
                 beat_position: 0.0,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree {
                     value: 11,
                     alteration: -2,
@@ -87,7 +87,7 @@ fn interpret_event_group_alterations() {
                 octave: None,
                 beat_position: 1.0,
                 beat: 0,
-            }
+            })
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -109,20 +109,20 @@ fn interpret_event_group_octaves() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(10)),
                 duration: 1.0,
                 octave: Some(Octave::with_octave(7)),
                 beat_position: 0.0,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(11)),
                 duration: 1.0,
                 octave: Some(Octave::with_octave(4)),
                 beat_position: 1.0,
                 beat: 0,
-            }
+            })
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -143,13 +143,13 @@ fn interpret_parenthesised_group_single() {
     };
 
     assert_eq!(
-        vec![IntermediateEvent {
+        vec![ArrangedIntermediates::from(IntermediateEvent {
             value: Audible::Degree(Degree::from(0)),
             duration: 1.0,
             octave: None,
             beat_position: 0.0,
             beat: 0,
-        },],
+        })],
         event_interpreter.interpret(&mut context).unwrap()
     );
 }
@@ -170,20 +170,20 @@ fn interpret_parenthesised_group_simple() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.5,
                 octave: None,
                 beat_position: 0.0,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.5,
                 octave: None,
                 beat_position: 0.5,
                 beat: 0,
-            }
+            })
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -205,27 +205,27 @@ fn interpret_parenthesised_group() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(10)),
                 duration: 0.25,
                 octave: None,
                 beat_position: 0.0,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(11)),
                 duration: 0.25,
                 octave: None,
                 beat_position: 0.25,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.5,
                 octave: None,
                 beat_position: 0.5,
                 beat: 0,
-            },
+            }),
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -248,55 +248,55 @@ fn interpret_parenthesised_group_recursive() {
 
     assert_eq!(
         vec![
-            IntermediateEvent {
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.125,
                 octave: None,
                 beat_position: 0.0,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.0625,
                 octave: None,
                 beat_position: 0.125,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.0625,
                 octave: None,
                 beat_position: 0.1875,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.125,
                 octave: None,
                 beat_position: 0.25,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.125,
                 octave: None,
                 beat_position: 0.375,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(1)),
                 duration: 0.25,
                 octave: None,
                 beat_position: 0.5,
                 beat: 0,
-            },
-            IntermediateEvent {
+            }),
+            ArrangedIntermediates::from(IntermediateEvent {
                 value: Audible::Degree(Degree::from(2)),
                 duration: 0.25,
                 octave: None,
                 beat_position: 0.75,
                 beat: 0,
-            },
+            }),
         ],
         event_interpreter.interpret(&mut context).unwrap()
     );
@@ -317,57 +317,62 @@ fn interpret_chord_simple() {
     };
 
     assert_eq!(
-        vec![
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(0)),
-                duration: 0.5,
-                octave: None,
-                beat_position: 0.0,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(1)),
-                duration: 0.5,
-                octave: None,
-                beat_position: 0.5,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(2)),
-                duration: 1.0,
-                octave: None,
-                beat_position: 0.0,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(4)),
-                duration: 0.25,
-                octave: None,
-                beat_position: 0.0,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(5)),
-                duration: 0.25,
-                octave: None,
-                beat_position: 0.25,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(6)),
-                duration: 0.25,
-                octave: None,
-                beat_position: 0.5,
-                beat: 0,
-            },
-            IntermediateEvent {
-                value: Audible::Degree(Degree::from(7)),
-                duration: 0.25,
-                octave: None,
-                beat_position: 0.75,
-                beat: 0,
-            },
-        ],
+        vec![ArrangedIntermediates {
+            values: vec![
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(0)),
+                    duration: 0.5,
+                    octave: None,
+                    beat_position: 0.0,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(1)),
+                    duration: 0.5,
+                    octave: None,
+                    beat_position: 0.5,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(2)),
+                    duration: 1.0,
+                    octave: None,
+                    beat_position: 0.0,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(4)),
+                    duration: 0.25,
+                    octave: None,
+                    beat_position: 0.0,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(5)),
+                    duration: 0.25,
+                    octave: None,
+                    beat_position: 0.25,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(6)),
+                    duration: 0.25,
+                    octave: None,
+                    beat_position: 0.5,
+                    beat: 0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(7)),
+                    duration: 0.25,
+                    octave: None,
+                    beat_position: 0.75,
+                    beat: 0,
+                }
+            ],
+            duration: 1.0,
+            beat: 0,
+            beat_position: 0.0,
+        }],
         event_interpreter.interpret(&mut context).unwrap()
     );
 }
@@ -540,14 +545,14 @@ fn interpret_pattern_inner_ties() {
     assert_eq!(expected, result);
 }
 
-
+#[ignore]
 #[test]
 fn pattern_inner_chord() {
     use types::*;
 
     let mut context = Context::default();
     let pattern: ast::Pattern =
-        CollyParser::parse_source_for_rule("| 0[0 2 45]1 |", Rule::Pattern)
+        CollyParser::parse_source_for_rule("| 0[0 2 45]12 |", Rule::Pattern)
             .unwrap();
     let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
 
@@ -605,7 +610,7 @@ fn pattern_inner_chord() {
     //             beat: 0,
     //         },
     //     ],
-    //     event_interpreter.interpret(&mut context).unwrap()
+    //     inner_interpreter.interpret(&mut context).unwrap()
     // );
 }
 

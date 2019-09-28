@@ -173,52 +173,31 @@ impl PatternInnerInterpreter {
         }
     }
 
-    fn normalize_intermediates(
-        &self,
-        intermediates: Vec<IntermediateEvent>,
-    ) -> Vec<IntermediateEvent> {
-        let mut divisor = intermediates
-            .iter()
-            .fold(0.0, |acc, event| acc + event.duration);
-        if self.divisor_multiplier > 0 {
-            divisor *= self.divisor_multiplier as f64;
-        }
-
-        intermediates
-            .into_iter()
-            .map(|mut event| {
-                event.duration /= divisor;
-                event.beat_position /= divisor;
-                event
-            })
-            .collect()
-    }
-
     fn handle_ties(
         &self,
-        intermediates: Vec<IntermediateEvent>,
+        intermediates: Vec<ArrangedIntermediates>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        Ok(intermediates
-            .iter()
-            .cloned()
-            .enumerate()
-            .filter(|(_, event)| event.value != Audible::Tie)
-            .map(|(mut n, mut event)| {
-                if intermediates.is_empty() {
-                    return event;
-                }
+        // Ok(intermediates
+        //     .iter()
+        //     .cloned()
+        //     .enumerate()
+        //     .filter(|(_, event)| event.value != Audible::Tie)
+        //     .map(|(mut n, mut event)| {
+        //         if intermediates.is_empty() {
+        //             return event;
+        //         }
 
-                while let Some(next_event) = intermediates.get(n + 1) {
-                    match next_event.value {
-                        Audible::Tie => event.duration += next_event.duration,
-                        _ => break,
-                    }
-                    n += 1;
-                }
+        //         while let Some(next_event) = intermediates.get(n + 1) {
+        //             match next_event.value {
+        //                 Audible::Tie => event.duration += next_event.duration,
+        //                 _ => break,
+        //             }
+        //             n += 1;
+        //         }
 
-                event
-            })
-            .collect())
+        //         event
+        //     })
+        //     .collect())
     }
 }
 
@@ -227,16 +206,17 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
         self,
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let mut intermediates: Vec<IntermediateEvent> = Vec::new();
+        let mut intermediates: Vec<ArrangedIntermediates> = Vec::new();
         for (beat, event) in self.inner.iter().enumerate() {
-            let events = BeatEventInterpreter {
+            let mut events = BeatEventInterpreter {
                 beat: beat as u64,
                 event: event.clone(),
                 octave: self.octave.clone(),
+                divisor_multiplier: self.divisor_multiplier,
             }
             .interpret(context)?;
 
-            intermediates.append(&mut self.normalize_intermediates(events));
+            intermediates.append(&mut events);
         }
 
         self.handle_ties(intermediates)
@@ -248,14 +228,44 @@ struct BeatEventInterpreter {
     event: ast::BeatEvent,
     beat: u64,
     octave: Rc<RefCell<types::Octave>>,
+    divisor_multiplier: usize,
 }
 
-impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
+impl BeatEventInterpreter {
+    fn normalize(
+        &self,
+        group: Vec<ArrangedIntermediates>,
+    ) -> Vec<ArrangedIntermediates> {
+        let mut divisor =
+            group.iter().fold(0.0, |acc, event| acc + event.duration);
+        if self.divisor_multiplier > 0 {
+            divisor *= self.divisor_multiplier as f64;
+        }
+
+        group
+            .into_iter()
+            .map(|mut arranged| {
+                arranged.values.iter_mut().for_each(|mut event| {
+                    event.duration /= divisor;
+                    event.beat_position /= divisor;
+                });
+                arranged
+            })
+            .map(|mut arranged| {
+                arranged.duration /= divisor;
+                arranged.beat_position /= divisor;
+                arranged
+            })
+            .collect()
+    }
+}
+
+impl Interpreter<Vec<ArrangedIntermediates>> for BeatEventInterpreter {
     fn interpret(
         self,
         context: &mut Context<'_>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let mut output: Vec<IntermediateEvent> = Vec::new();
+    ) -> InterpreterResult<Vec<ArrangedIntermediates>> {
+        let mut output: Vec<ArrangedIntermediates> = Vec::new();
         let beat_position = Rc::new(RefCell::new(0.0));
         for event in self.clone().event.0 {
             output.append(
@@ -269,7 +279,7 @@ impl Interpreter<Vec<IntermediateEvent>> for BeatEventInterpreter {
             );
         }
 
-        Ok(output)
+        Ok(self.normalize(output))
     }
 }
 
@@ -281,11 +291,11 @@ struct EventInterpreter {
     beat_position: Rc<RefCell<f64>>,
 }
 
-impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
+impl Interpreter<Vec<ArrangedIntermediates>> for EventInterpreter {
     fn interpret(
         self,
         context: &mut Context<'_>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+    ) -> InterpreterResult<Vec<ArrangedIntermediates>> {
         match self.event.clone() {
             ast::Event::Group(atoms) => self.interpret_group(atoms),
             ast::Event::Chord(chord) => self.interpret_chord(chord, context),
@@ -300,8 +310,8 @@ impl EventInterpreter {
     fn interpret_group(
         self,
         atoms: Vec<ast::PatternAtom>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let mut output: Vec<IntermediateEvent> = Vec::new();
+    ) -> InterpreterResult<Vec<ArrangedIntermediates>> {
+        let mut output: Vec<ArrangedIntermediates> = Vec::new();
         let mut atom_interpreter = AtomInterpreter::new(
             self.octave.clone(),
             self.beat,
@@ -321,7 +331,7 @@ impl EventInterpreter {
         self,
         event: ast::ParenthesisedEvent,
         context: &mut Context<'_>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+    ) -> InterpreterResult<Vec<ArrangedIntermediates>> {
         let intermediates =
             self.interpret_inner(event.inner.len(), event.inner, context)?;
         let methods_modifier =
@@ -334,7 +344,7 @@ impl EventInterpreter {
                 event.beat_position = **position;
                 **position += event.duration;
                 event.beat = self.beat;
-                Some(event)
+                Some(ArrangedIntermediates::from(event))
             })
             .collect())
     }
@@ -354,13 +364,13 @@ impl EventInterpreter {
         self,
         chord: ast::Chord,
         context: &mut Context<'_>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+    ) -> InterpreterResult<Vec<ArrangedIntermediates>> {
         let intermediates = self.interpret_inner(1, chord.inner, context)?;
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &chord.methods);
         let mut position = self.beat_position.borrow_mut();
 
-        let result = intermediates
+        let values = intermediates
             .into_iter()
             .map(|mut event| {
                 event.duration *= methods_modifier;
@@ -370,7 +380,15 @@ impl EventInterpreter {
             })
             .collect();
 
-        *position += 1.0 * methods_modifier;
+        let duration = 1.0 * methods_modifier;
+        let result = vec![ArrangedIntermediates {
+            values,
+            duration,
+            beat: self.beat,
+            beat_position: *position,
+        }];
+
+        *position += duration;
 
         Ok(result)
     }
@@ -402,7 +420,7 @@ impl AtomInterpreter {
     fn interpret(
         &mut self,
         atom: ast::PatternAtom,
-    ) -> InterpreterResult<Option<IntermediateEvent>> {
+    ) -> InterpreterResult<Option<ArrangedIntermediates>> {
         match atom.value {
             ast::PatternAtomValue::Octave(octave) => {
                 self.interpret_octave_change(octave);
@@ -416,8 +434,7 @@ impl AtomInterpreter {
                 Ok(Some(self.next_intermediate(value, &atom.methods)))
             }
             ast::PatternAtomValue::Pause => {
-                let value = Audible::Pause;
-                Ok(Some(self.next_intermediate(value, &atom.methods)))
+                Ok(Some(self.next_intermediate(Audible::Pause, &atom.methods)))
             }
             ast::PatternAtomValue::MacroTarget => unimplemented!(),
             ast::PatternAtomValue::Modulation(modulation) => unimplemented!(),
@@ -444,7 +461,7 @@ impl AtomInterpreter {
         &mut self,
         value: Audible,
         methods: &[ast::EventMethod],
-    ) -> IntermediateEvent {
+    ) -> ArrangedIntermediates {
         let duration = AtomInterpreter::interpret_methods(1.0, methods);
         let mut beat_position = self.position.borrow_mut();
         let intermediate = IntermediateEvent {
@@ -454,9 +471,10 @@ impl AtomInterpreter {
             beat_position: *beat_position,
             beat: self.beat,
         };
+
         *beat_position += duration;
 
-        intermediate
+        intermediate.into()
     }
 
     fn interpret_note(&mut self, note: ast::Note) -> types::Degree {
@@ -486,6 +504,25 @@ impl AtomInterpreter {
                 ast::EventMethod::Divide => duration / 2.0,
                 ast::EventMethod::Dot => duration * 1.5,
             })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+struct ArrangedIntermediates {
+    values: Vec<IntermediateEvent>,
+    duration: f64,
+    beat: u64,
+    beat_position: f64,
+}
+
+impl From<IntermediateEvent> for ArrangedIntermediates {
+    fn from(intermediate: IntermediateEvent) -> Self {
+        Self {
+            duration: intermediate.duration,
+            beat: intermediate.beat,
+            beat_position: intermediate.beat_position,
+            values: vec![intermediate],
+        }
     }
 }
 
