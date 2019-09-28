@@ -303,6 +303,76 @@ fn interpret_parenthesised_group_recursive() {
 }
 
 #[test]
+fn interpret_chord_simple() {
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("[01 2 4567]", Rule::Event).unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: Default::default(),
+    };
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.5,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(1)),
+                duration: 0.5,
+                octave: None,
+                beat_position: 0.5,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(4)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(5)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.25,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(6)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.5,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(7)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.75,
+                beat: 0,
+            },
+        ],
+        event_interpreter.interpret(&mut context).unwrap()
+    );
+}
+
+#[test]
 fn interpret_pattern_inner_simple() {
     use types::*;
 
@@ -468,4 +538,90 @@ fn interpret_pattern_inner_ties() {
     ];
 
     assert_eq!(expected, result);
+}
+
+
+#[test]
+fn pattern_inner_chord() {
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| 0[0 2 45]1 |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+
+    dbg!(inner_interpreter.interpret(&mut context).unwrap());
+
+    // assert_eq!(
+    //     vec![
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(0)),
+    //             duration: 0.5,
+    //             octave: None,
+    //             beat_position: 0.0,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(1)),
+    //             duration: 0.5,
+    //             octave: None,
+    //             beat_position: 0.5,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(2)),
+    //             duration: 1.0,
+    //             octave: None,
+    //             beat_position: 0.0,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(4)),
+    //             duration: 0.25,
+    //             octave: None,
+    //             beat_position: 0.0,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(5)),
+    //             duration: 0.25,
+    //             octave: None,
+    //             beat_position: 0.25,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(6)),
+    //             duration: 0.25,
+    //             octave: None,
+    //             beat_position: 0.5,
+    //             beat: 0,
+    //         },
+    //         IntermediateEvent {
+    //             value: Audible::Degree(Degree::from(7)),
+    //             duration: 0.25,
+    //             octave: None,
+    //             beat_position: 0.75,
+    //             beat: 0,
+    //         },
+    //     ],
+    //     event_interpreter.interpret(&mut context).unwrap()
+    // );
+}
+
+#[ignore]
+#[test]
+fn interpret_chord_with_parenthesised() {
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("[01 3 (56 7)]", Rule::Event)
+            .unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: Default::default(),
+    };
 }

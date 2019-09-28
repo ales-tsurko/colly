@@ -152,6 +152,7 @@ impl Interpreter<types::Pattern> for ast::Pattern {
         let mut pattern =
             types::Pattern::new(context.mixer.clock.cursor().clone());
         // TODO: schedule events
+        pattern.sort();
 
         Ok(pattern)
     }
@@ -287,7 +288,7 @@ impl Interpreter<Vec<IntermediateEvent>> for EventInterpreter {
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         match self.event.clone() {
             ast::Event::Group(atoms) => self.interpret_group(atoms),
-            ast::Event::Chord(chord) => self.interpret_chord(chord),
+            ast::Event::Chord(chord) => self.interpret_chord(chord, context),
             ast::Event::ParenthesisedEvent(event) => {
                 self.interpret_parenthesised(event, context)
             }
@@ -321,11 +322,8 @@ impl EventInterpreter {
         event: ast::ParenthesisedEvent,
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let num_of_beats = event.inner.len();
-        let mut inner_interpreter = PatternInnerInterpreter::new(event.inner);
-        inner_interpreter.divisor_multiplier = num_of_beats;
-        let intermediates = inner_interpreter.interpret(context)?;
-
+        let intermediates =
+            self.interpret_inner(event.inner.len(), event.inner, context)?;
         let methods_modifier =
             AtomInterpreter::interpret_methods(1.0, &event.methods);
 
@@ -341,11 +339,40 @@ impl EventInterpreter {
             .collect())
     }
 
+    fn interpret_inner(
+        &self,
+        num_of_beats: usize,
+        inner: Vec<ast::BeatEvent>,
+        context: &mut Context<'_>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
+        let mut inner_interpreter = PatternInnerInterpreter::new(inner);
+        inner_interpreter.divisor_multiplier = num_of_beats;
+        inner_interpreter.interpret(context)
+    }
+
     fn interpret_chord(
         self,
         chord: ast::Chord,
+        context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        unimplemented!()
+        let intermediates = self.interpret_inner(1, chord.inner, context)?;
+        let methods_modifier =
+            AtomInterpreter::interpret_methods(1.0, &chord.methods);
+        let mut position = self.beat_position.borrow_mut();
+
+        let result = intermediates
+            .into_iter()
+            .map(|mut event| {
+                event.duration *= methods_modifier;
+                event.beat = self.beat;
+                event.beat_position += *position;
+                event
+            })
+            .collect();
+
+        *position += 1.0 * methods_modifier;
+
+        Ok(result)
     }
 }
 

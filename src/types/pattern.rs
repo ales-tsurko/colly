@@ -108,6 +108,14 @@ impl Pattern {
         self.start_position
     }
 
+    pub fn sort(&mut self) {
+        self.degree.sort();
+        self.scale.sort();
+        self.root.sort();
+        self.octave.sort();
+        self.modulation.sort();
+    }
+
     #[allow(clippy::type_complexity)]
     fn next_degree_and_modulation(
         &mut self,
