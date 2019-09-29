@@ -175,29 +175,61 @@ impl PatternInnerInterpreter {
 
     fn handle_ties(
         &self,
-        intermediates: Vec<ArrangedIntermediates>,
+        mut intermediates: Vec<ArrangedIntermediates>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        // Ok(intermediates
-        //     .iter()
-        //     .cloned()
-        //     .enumerate()
-        //     .filter(|(_, event)| event.value != Audible::Tie)
-        //     .map(|(mut n, mut event)| {
-        //         if intermediates.is_empty() {
-        //             return event;
-        //         }
+        if intermediates.is_empty() {
+            return Ok(Vec::new());
+        }
 
-        //         while let Some(next_event) = intermediates.get(n + 1) {
-        //             match next_event.value {
-        //                 Audible::Tie => event.duration += next_event.duration,
-        //                 _ => break,
-        //             }
-        //             n += 1;
-        //         }
+        let mut result: Vec<IntermediateEvent> = intermediates.remove(0).values;
+        let mut previous_indices: Vec<usize> =
+            result.iter().enumerate().map(|(n, _)| n).collect();
+        let mut n: usize;
+        let mut buf: Vec<usize> = Vec::new();
 
-        //         event
-        //     })
-        //     .collect())
+        for arranged in intermediates.into_iter() {
+            n = 0;
+            buf.clear();
+
+            while !previous_indices.is_empty() {
+                let prev_n = previous_indices.remove(0);
+                let current =
+                    arranged.values[n % arranged.values.len()].to_owned();
+                let mut previous = &mut result[prev_n];
+                match current.value {
+                    Audible::Tie => {
+                        previous.duration += current.duration;
+                        buf.push(prev_n);
+                    }
+                    _ => {
+                        result.push(current);
+                        buf.push(result.len() - 1);
+                    }
+                }
+
+                n += 1;
+            }
+
+            if arranged.values.len() > n {
+                for event in arranged.values.into_iter() {
+                    match event.value {
+                        Audible::Tie => {
+                            return Err(InterpreterError::LonelyTie(
+                                arranged.beat,
+                            ))
+                        }
+                        _ => {
+                            result.push(event);
+                            buf.push(result.len() - 1);
+                        }
+                    }
+                }
+            }
+
+            previous_indices = buf.clone();
+        }
+
+        Ok(result)
     }
 }
 
@@ -566,4 +598,6 @@ impl IntermediateEvent {
 pub enum InterpreterError {
     #[fail(display = "Error during interpretation of {}: {}", 0, 1)]
     Rule(String, String),
+    #[fail(display = "Alone Tie at beat number {}", 0)]
+    LonelyTie(u64),
 }

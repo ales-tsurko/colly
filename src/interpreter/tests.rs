@@ -630,3 +630,10 @@ fn interpret_chord_with_parenthesised() {
         beat_position: Default::default(),
     };
 }
+
+// | [ 0 2 4 ] [ _ r ] [ _ _ r ] 1 |
+// | [ _ ] |
+// | ( _ ) |
+
+// | [ 0 2 ] _ |
+// | [ 0 2 ] [ _ _ 4 ] |
