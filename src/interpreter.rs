@@ -181,55 +181,66 @@ impl PatternInnerInterpreter {
             return Ok(Vec::new());
         }
 
+        self.check_ties_on_first_beat(&intermediates)?;
+
         let mut result: Vec<IntermediateEvent> = intermediates.remove(0).values;
         let mut previous_indices: Vec<usize> =
             result.iter().enumerate().map(|(n, _)| n).collect();
-        let mut n: usize;
-        let mut buf: Vec<usize> = Vec::new();
 
-        for arranged in intermediates.into_iter() {
-            n = 0;
-            buf.clear();
+        for (beat, mut values) in intermediates
+            .into_iter()
+            .map(|arranged| (arranged.beat, arranged.values))
+        {
+            let mid = previous_indices.len().min(values.len());
+            let rest = values.split_off(mid);
 
-            while !previous_indices.is_empty() {
-                let prev_n = previous_indices.remove(0);
-                let current =
-                    arranged.values[n % arranged.values.len()].to_owned();
-                let mut previous = &mut result[prev_n];
+            for (n, prev_n) in
+                previous_indices.split_off(0).into_iter().enumerate()
+            {
+                let current = values[n % values.len()].clone();
                 match current.value {
                     Audible::Tie => {
-                        previous.duration += current.duration;
-                        buf.push(prev_n);
+                        result[prev_n].duration += current.duration;
+                        previous_indices.push(prev_n);
                     }
                     _ => {
                         result.push(current);
-                        buf.push(result.len() - 1);
-                    }
-                }
-
-                n += 1;
-            }
-
-            if arranged.values.len() > n {
-                for event in arranged.values.into_iter() {
-                    match event.value {
-                        Audible::Tie => {
-                            return Err(InterpreterError::LonelyTie(
-                                arranged.beat,
-                            ))
-                        }
-                        _ => {
-                            result.push(event);
-                            buf.push(result.len() - 1);
-                        }
+                        previous_indices.push(result.len() - 1);
                     }
                 }
             }
 
-            previous_indices = buf.clone();
+            for event in rest.into_iter() {
+                match event.value {
+                    Audible::Tie => {
+                        return Err(InterpreterError::LonelyTie(beat))
+                    }
+                    _ => {
+                        result.push(event);
+                        previous_indices.push(result.len() - 1);
+                    }
+                }
+            }
         }
 
         Ok(result)
+    }
+
+    fn check_ties_on_first_beat(
+        &self,
+        intermediates: &[ArrangedIntermediates],
+    ) -> InterpreterResult<()> {
+        if let Some(arranged) = intermediates.get(0) {
+            for event in arranged.values.iter() {
+                if let Audible::Tie = event.value {
+                    return Err(InterpreterError::LonelyTie(
+                        intermediates[0].beat,
+                    ));
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
