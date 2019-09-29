@@ -252,8 +252,7 @@ impl TieInterpreter {
     }
 
     fn prepare_buffers(&mut self) -> InterpreterResult<()> {
-        //FIXME: срабатывает при рекурсии
-        // self.check_lonely()?;
+        self.check_lonely()?;
 
         self.result = self.intermediates.remove(0).values;
         self.previous_indices =

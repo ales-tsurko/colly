@@ -562,43 +562,6 @@ fn interpret_pattern_inner_parenthesised() {
 }
 
 #[test]
-fn interpret_pattern_inner_ties() {
-    use types::*;
-
-    let mut context = Context::default();
-    let pattern: ast::Pattern =
-        CollyParser::parse_source_for_rule("| 0_0_ _ 0 |", Rule::Pattern)
-            .unwrap();
-    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
-    let result = inner_interpreter.interpret(&mut context).unwrap();
-    let expected = vec![
-        IntermediateEvent {
-            value: Audible::Degree(Degree::from(0)),
-            duration: 0.5,
-            octave: None,
-            beat_position: 0.0,
-            beat: 0,
-        },
-        IntermediateEvent {
-            value: Audible::Degree(Degree::from(0)),
-            duration: 1.5,
-            octave: None,
-            beat_position: 0.5,
-            beat: 0,
-        },
-        IntermediateEvent {
-            value: Audible::Degree(Degree::from(0)),
-            duration: 1.0,
-            octave: None,
-            beat_position: 0.0,
-            beat: 2,
-        },
-    ];
-
-    assert_eq!(expected, result);
-}
-
-#[test]
 fn pattern_inner_chord_within_group() {
     use types::*;
 
@@ -658,6 +621,137 @@ fn pattern_inner_chord_within_group() {
                 octave: None,
                 beat_position: 0.75,
                 beat: 0,
+            },
+        ],
+        inner_interpreter.interpret(&mut context).unwrap()
+    );
+}
+
+#[test]
+fn interpret_pattern_inner_ties() {
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| 0_0_ _ 0 |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+    let result = inner_interpreter.interpret(&mut context).unwrap();
+    let expected = vec![
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 0.5,
+            octave: None,
+            beat_position: 0.0,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 1.5,
+            octave: None,
+            beat_position: 0.5,
+            beat: 0,
+        },
+        IntermediateEvent {
+            value: Audible::Degree(Degree::from(0)),
+            duration: 1.0,
+            octave: None,
+            beat_position: 0.0,
+            beat: 2,
+        },
+    ];
+
+    assert_eq!(expected, result);
+}
+
+#[test]
+fn pattern_inner_chord_single_tie() {
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| [ 0 2 4 ] _ r |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(4)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Pause,
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 2,
+            },
+        ],
+        inner_interpreter.interpret(&mut context).unwrap()
+    );
+}
+
+#[test]
+fn pattern_inner_chord_chord_ties() {
+    use types::*;
+
+    let mut context = Context::default();
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| [ 0 2 ] [ _ _ 4 ] r |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(4)),
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 1,
+            },
+            IntermediateEvent {
+                value: Audible::Pause,
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 2,
             },
         ],
         inner_interpreter.interpret(&mut context).unwrap()
@@ -727,7 +821,7 @@ fn pattern_inner_chord_multitie_chords() {
 
 #[should_panic]
 #[test]
-fn pattern_inner_lonely_tie_in_chord() {
+fn pattern_inner_lonely_tie_after_chord() {
     let mut context = Context::default();
     let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
         "| [ 0 2 ] [ _ r _ ] |",
@@ -738,8 +832,28 @@ fn pattern_inner_lonely_tie_in_chord() {
     inner_interpreter.interpret(&mut context).unwrap();
 }
 
-// | [ _ ] | should panic
-// | ( _ ) | should panic
+#[should_panic]
+#[test]
+fn pattern_inner_lonely_tie_first_beat_chord() {
+    let mut context = Context::default();
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| [ _ _ ] |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    inner_interpreter.interpret(&mut context).unwrap();
+}
 
-// | [ 0 2 ] _ |
-// | [ 0 2 ] [ _ _ 4 ] |
+#[should_panic]
+#[test]
+fn pattern_inner_lonely_tie_first_beat_parenthesised() {
+    let mut context = Context::default();
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| ( _ _ ) |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    inner_interpreter.interpret(&mut context).unwrap();
+}
