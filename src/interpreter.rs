@@ -163,12 +163,14 @@ struct PatternInnerInterpreter {
     divisor_multiplier: usize,
     octave: Rc<RefCell<types::Octave>>,
     inner: Vec<ast::BeatEvent>,
+    interpret_ties: bool,
 }
 
 impl PatternInnerInterpreter {
     fn new(inner: Vec<ast::BeatEvent>) -> Self {
         PatternInnerInterpreter {
             inner,
+            interpret_ties: true,
             ..Default::default()
         }
     }
@@ -192,8 +194,16 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
             intermediates.append(&mut events);
         }
 
-        let tie_interpreter = TieInterpreter::new(intermediates);
-        tie_interpreter.interpret(context)
+        if self.interpret_ties {
+            let tie_interpreter = TieInterpreter::new(intermediates);
+            tie_interpreter.interpret(context)
+        } else {
+            Ok(intermediates
+                .into_iter()
+                .map(|arranged| arranged.values)
+                .flatten()
+                .collect())
+        }
     }
 }
 
@@ -242,7 +252,8 @@ impl TieInterpreter {
     }
 
     fn prepare_buffers(&mut self) -> InterpreterResult<()> {
-        self.check_ties_on_first_beat()?;
+        //FIXME: срабатывает при рекурсии
+        // self.check_lonely()?;
 
         self.result = self.intermediates.remove(0).values;
         self.previous_indices =
@@ -251,7 +262,7 @@ impl TieInterpreter {
         Ok(())
     }
 
-    fn check_ties_on_first_beat(&self) -> InterpreterResult<()> {
+    fn check_lonely(&self) -> InterpreterResult<()> {
         if let Some(arranged) = self.intermediates.get(0) {
             for event in arranged.values.iter() {
                 if let Audible::Tie = event.value {
@@ -277,8 +288,7 @@ impl TieInterpreter {
                 }
                 _ => {
                     if values.len() > n {
-                        self.result.push(current);
-                        self.previous_indices.push(self.result.len() - 1);
+                        self.push_result(current);
                     }
                 }
             }
@@ -293,14 +303,16 @@ impl TieInterpreter {
         for event in next.into_iter() {
             match event.value {
                 Audible::Tie => return Err(InterpreterError::LonelyTie(beat)),
-                _ => {
-                    self.result.push(event);
-                    self.previous_indices.push(self.result.len() - 1);
-                }
+                _ => self.push_result(event),
             }
         }
 
         Ok(())
+    }
+
+    fn push_result(&mut self, event: IntermediateEvent) {
+        self.result.push(event);
+        self.previous_indices.push(self.result.len() - 1);
     }
 }
 
@@ -437,6 +449,7 @@ impl EventInterpreter {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut inner_interpreter = PatternInnerInterpreter::new(inner);
+        inner_interpreter.interpret_ties = false;
         inner_interpreter.divisor_multiplier = num_of_beats;
         inner_interpreter.interpret(context)
     }

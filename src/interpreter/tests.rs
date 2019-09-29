@@ -362,6 +362,75 @@ fn interpret_chord_simple() {
 }
 
 #[test]
+fn interpret_chord_with_parenthesised() {
+    use types::*;
+
+    let mut context = Context::default();
+    let event: ast::Event =
+        CollyParser::parse_source_for_rule("[01 3 (56 7)]", Rule::Event)
+            .unwrap();
+    let event_interpreter = EventInterpreter {
+        event,
+        beat: 0,
+        octave: Default::default(),
+        beat_position: Default::default(),
+    };
+
+    assert_eq!(
+        vec![ArrangedIntermediates {
+            values: vec![
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(0)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.0,
+                    duration: 0.5,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(1)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.5,
+                    duration: 0.5,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(3)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.0,
+                    duration: 1.0,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(5)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.0,
+                    duration: 0.25,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(6)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.25,
+                    duration: 0.25,
+                },
+                IntermediateEvent {
+                    value: Audible::Degree(Degree::from(7)),
+                    beat: 0,
+                    octave: None,
+                    beat_position: 0.5,
+                    duration: 0.5,
+                },
+            ],
+            beat: 0,
+            beat_position: 0.0,
+            duration: 1.0,
+        }],
+        event_interpreter.interpret(&mut context).unwrap()
+    );
+}
+
+#[test]
 fn interpret_pattern_inner_simple() {
     use types::*;
 
@@ -548,7 +617,6 @@ fn pattern_inner_chord_within_group() {
                 beat_position: 0.0,
                 beat: 0,
             },
-
             IntermediateEvent {
                 value: Audible::Degree(Degree::from(0)),
                 duration: 0.25,
@@ -577,7 +645,6 @@ fn pattern_inner_chord_within_group() {
                 beat_position: 0.375,
                 beat: 0,
             },
-
             IntermediateEvent {
                 value: Audible::Degree(Degree::from(1)),
                 duration: 0.25,
@@ -597,26 +664,82 @@ fn pattern_inner_chord_within_group() {
     );
 }
 
-#[ignore]
 #[test]
-fn interpret_chord_with_parenthesised() {
+fn pattern_inner_chord_multitie_chords() {
     use types::*;
 
     let mut context = Context::default();
-    let event: ast::Event =
-        CollyParser::parse_source_for_rule("[01 3 (56 7)]", Rule::Event)
-            .unwrap();
-    let event_interpreter = EventInterpreter {
-        event,
-        beat: 0,
-        octave: Default::default(),
-        beat_position: Default::default(),
-    };
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| [ 0 2 4 ] [ _ r ] [ _ _ r ] 1 |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
+
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 3.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(4)),
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Pause,
+                duration: 2.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 1,
+            },
+            IntermediateEvent {
+                value: Audible::Pause,
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 2,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(1)),
+                duration: 1.0,
+                octave: None,
+                beat_position: 0.0,
+                beat: 3,
+            },
+        ],
+        inner_interpreter.interpret(&mut context).unwrap()
+    );
 }
 
-// | [ 0 2 4 ] [ _ r ] [ _ _ r ] 1 |
+#[should_panic]
+#[test]
+fn pattern_inner_lonely_tie_in_chord() {
+    let mut context = Context::default();
+    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
+        "| [ 0 2 ] [ _ r _ ] |",
+        Rule::Pattern,
+    )
+    .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    inner_interpreter.interpret(&mut context).unwrap();
+}
+
 // | [ _ ] | should panic
 // | ( _ ) | should panic
 
 // | [ 0 2 ] _ |
-// | [ 0 2 ] [ _ _ 4 ] | 
+// | [ 0 2 ] [ _ _ 4 ] |
