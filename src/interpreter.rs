@@ -182,10 +182,10 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
         context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
         let mut intermediates: Vec<ArrangedIntermediates> = Vec::new();
-        for (beat, event) in self.inner.into_iter().enumerate() {
+        for (beat, event) in self.inner.iter().enumerate() {
             let mut events = BeatEventInterpreter {
                 beat: beat as u64,
-                event,
+                event: event.clone(),
                 octave: self.octave.clone(),
                 divisor_multiplier: self.divisor_multiplier,
             }
@@ -194,6 +194,16 @@ impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
             intermediates.append(&mut events);
         }
 
+        self.interpret_ties_or_concat(intermediates, context)
+    }
+}
+
+impl PatternInnerInterpreter {
+    fn interpret_ties_or_concat(
+        &self,
+        intermediates: Vec<ArrangedIntermediates>,
+        context: &mut Context<'_>,
+    ) -> InterpreterResult<Vec<IntermediateEvent>> {
         if self.interpret_ties {
             let tie_interpreter = TieInterpreter::new(intermediates);
             tie_interpreter.interpret(context)
