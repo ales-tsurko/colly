@@ -172,14 +172,28 @@ impl PatternInnerInterpreter {
             ..Default::default()
         }
     }
+}
 
-    fn handle_ties(
-        &self,
-        intermediates: Vec<ArrangedIntermediates>,
+impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
+    fn interpret(
+        self,
+        context: &mut Context<'_>,
     ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let mut context = Context::default();
+        let mut intermediates: Vec<ArrangedIntermediates> = Vec::new();
+        for (beat, event) in self.inner.into_iter().enumerate() {
+            let mut events = BeatEventInterpreter {
+                beat: beat as u64,
+                event,
+                octave: self.octave.clone(),
+                divisor_multiplier: self.divisor_multiplier,
+            }
+            .interpret(context)?;
+
+            intermediates.append(&mut events);
+        }
+
         let tie_interpreter = TieInterpreter::new(intermediates);
-        tie_interpreter.interpret(&mut context)
+        tie_interpreter.interpret(context)
     }
 }
 
@@ -262,8 +276,10 @@ impl TieInterpreter {
                     self.previous_indices.push(prev_n);
                 }
                 _ => {
-                    self.result.push(current);
-                    self.previous_indices.push(self.result.len() - 1);
+                    if values.len() > n {
+                        self.result.push(current);
+                        self.previous_indices.push(self.result.len() - 1);
+                    }
                 }
             }
         }
@@ -285,28 +301,6 @@ impl TieInterpreter {
         }
 
         Ok(())
-    }
-}
-
-impl Interpreter<Vec<IntermediateEvent>> for PatternInnerInterpreter {
-    fn interpret(
-        self,
-        context: &mut Context<'_>,
-    ) -> InterpreterResult<Vec<IntermediateEvent>> {
-        let mut intermediates: Vec<ArrangedIntermediates> = Vec::new();
-        for (beat, event) in self.inner.iter().enumerate() {
-            let mut events = BeatEventInterpreter {
-                beat: beat as u64,
-                event: event.clone(),
-                octave: self.octave.clone(),
-                divisor_multiplier: self.divisor_multiplier,
-            }
-            .interpret(context)?;
-
-            intermediates.append(&mut events);
-        }
-
-        self.handle_ties(intermediates)
     }
 }
 

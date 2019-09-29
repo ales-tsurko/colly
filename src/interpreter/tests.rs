@@ -529,9 +529,8 @@ fn interpret_pattern_inner_ties() {
     assert_eq!(expected, result);
 }
 
-#[ignore]
 #[test]
-fn pattern_inner_chord() {
+fn pattern_inner_chord_within_group() {
     use types::*;
 
     let mut context = Context::default();
@@ -540,62 +539,62 @@ fn pattern_inner_chord() {
             .unwrap();
     let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
 
-    dbg!(inner_interpreter.interpret(&mut context).unwrap());
+    assert_eq!(
+        vec![
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.0,
+                beat: 0,
+            },
 
-    // assert_eq!(
-    //     vec![
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(0)),
-    //             duration: 0.5,
-    //             octave: None,
-    //             beat_position: 0.0,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(1)),
-    //             duration: 0.5,
-    //             octave: None,
-    //             beat_position: 0.5,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(2)),
-    //             duration: 1.0,
-    //             octave: None,
-    //             beat_position: 0.0,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(4)),
-    //             duration: 0.25,
-    //             octave: None,
-    //             beat_position: 0.0,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(5)),
-    //             duration: 0.25,
-    //             octave: None,
-    //             beat_position: 0.25,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(6)),
-    //             duration: 0.25,
-    //             octave: None,
-    //             beat_position: 0.5,
-    //             beat: 0,
-    //         },
-    //         IntermediateEvent {
-    //             value: Audible::Degree(Degree::from(7)),
-    //             duration: 0.25,
-    //             octave: None,
-    //             beat_position: 0.75,
-    //             beat: 0,
-    //         },
-    //     ],
-    //     inner_interpreter.interpret(&mut context).unwrap()
-    // );
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(0)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.25,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.25,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(4)),
+                duration: 0.125,
+                octave: None,
+                beat_position: 0.25,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(5)),
+                duration: 0.125,
+                octave: None,
+                beat_position: 0.375,
+                beat: 0,
+            },
+
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(1)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.5,
+                beat: 0,
+            },
+            IntermediateEvent {
+                value: Audible::Degree(Degree::from(2)),
+                duration: 0.25,
+                octave: None,
+                beat_position: 0.75,
+                beat: 0,
+            },
+        ],
+        inner_interpreter.interpret(&mut context).unwrap()
+    );
 }
 
 #[ignore]
@@ -616,8 +615,8 @@ fn interpret_chord_with_parenthesised() {
 }
 
 // | [ 0 2 4 ] [ _ r ] [ _ _ r ] 1 |
-// | [ _ ] |
-// | ( _ ) |
+// | [ _ ] | should panic
+// | ( _ ) | should panic
 
 // | [ 0 2 ] _ |
-// | [ 0 2 ] [ _ _ 4 ] |
+// | [ 0 2 ] [ _ _ 4 ] | 
