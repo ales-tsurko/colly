@@ -669,11 +669,9 @@ fn pattern_inner_chord_single_tie() {
     use types::*;
 
     let mut context = Context::default();
-    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
-        "| [ 0 2 4 ] _ r |",
-        Rule::Pattern,
-    )
-    .unwrap();
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| [ 0 2 4 ] _ r |", Rule::Pattern)
+            .unwrap();
     let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
 
     assert_eq!(
@@ -828,7 +826,7 @@ fn pattern_inner_lonely_tie_after_chord() {
         Rule::Pattern,
     )
     .unwrap();
-    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
     inner_interpreter.interpret(&mut context).unwrap();
 }
 
@@ -836,12 +834,10 @@ fn pattern_inner_lonely_tie_after_chord() {
 #[test]
 fn pattern_inner_lonely_tie_first_beat_chord() {
     let mut context = Context::default();
-    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
-        "| [ _ _ ] |",
-        Rule::Pattern,
-    )
-    .unwrap();
-    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| [ _ _ ] |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
     inner_interpreter.interpret(&mut context).unwrap();
 }
 
@@ -849,11 +845,9 @@ fn pattern_inner_lonely_tie_first_beat_chord() {
 #[test]
 fn pattern_inner_lonely_tie_first_beat_parenthesised() {
     let mut context = Context::default();
-    let pattern: ast::Pattern = CollyParser::parse_source_for_rule(
-        "| ( _ _ ) |",
-        Rule::Pattern,
-    )
-    .unwrap();
-    let inner_interpreter = PatternInnerInterpreter::new(pattern.0); 
+    let pattern: ast::Pattern =
+        CollyParser::parse_source_for_rule("| ( _ _ ) |", Rule::Pattern)
+            .unwrap();
+    let inner_interpreter = PatternInnerInterpreter::new(pattern.0);
     inner_interpreter.interpret(&mut context).unwrap();
 }

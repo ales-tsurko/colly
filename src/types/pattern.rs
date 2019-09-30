@@ -246,20 +246,25 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.sort();
-        
+
         if self.events.is_empty()
             || (self.increment >= self.events.len() && !self.is_loop)
         {
             return None;
         }
 
-        let mut result: Self::Item = self.events[self.increment..]
-            .iter()
-            .filter(|e| e.position == self.cursor.position)
-            .cloned()
-            .collect();
-        self.increment += result.len();
-        result = self.handle_gaps(result);
+        let mut result: Self::Item = Vec::new();
+        for event in self.events[self.increment..].iter() {
+            if event.position == self.cursor.position {
+                result.push(event.clone());
+                self.increment += 1;
+            }
+
+            if event.position > self.cursor.position {
+                break;
+            }
+        }
+        self.handle_gaps(&mut result);
 
         self.cursor.next().unwrap(); // Cursor::next is always Some
         self.check_loop();
@@ -318,22 +323,23 @@ impl<T: Clone + Debug + Default> EventStream<T> {
         }
     }
 
-    fn handle_gaps(&mut self, events: Vec<Event<T>>) -> Vec<Event<T>> {
+    fn handle_gaps(&mut self, events: &mut Vec<Event<T>>) {
         if !events.is_empty() {
             self.gap_value = events.clone();
         }
 
         if self.fill_gaps && events.is_empty() {
-            self.gap_value
-                .iter()
-                .cloned()
-                .map(|mut e| {
-                    e.position = self.cursor.position;
-                    e
-                })
-                .collect()
-        } else {
-            events
+            events.append(
+                &mut self
+                    .gap_value
+                    .iter()
+                    .cloned()
+                    .map(|mut e| {
+                        e.position = self.cursor.position;
+                        e
+                    })
+                    .collect(),
+            );
         }
     }
 }
