@@ -4,15 +4,14 @@ use std::sync::RwLock;
 
 use config::Config;
 use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
 
 lazy_static! {
     /// Settings singleton.
-    pub static ref SETTINGS: RwLock<Config> = (|| {
+    pub static ref SETTINGS: RwLock<Config> = {
         let mut config = Config::new();
         config.set_default("clock.resolution", 1920).unwrap();
         RwLock::new(config)
-    })();
+    };
 }
 
 #[cfg(test)]
