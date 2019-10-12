@@ -59,11 +59,11 @@ impl Pattern {
         let start_position = cursor.position;
         cursor.position = (0, 0).into();
         let mut result = Self {
-            degree: EventStream::new(vec![], cursor.resolution()),
-            scale: EventStream::new(vec![], cursor.resolution()),
-            root: EventStream::new(vec![], cursor.resolution()),
-            octave: EventStream::new(vec![], cursor.resolution()),
-            modulation: EventStream::new(vec![], cursor.resolution()),
+            degree: EventStream::new(vec![]),
+            scale: EventStream::new(vec![]),
+            root: EventStream::new(vec![]),
+            octave: EventStream::new(vec![]),
+            modulation: EventStream::new(vec![]),
             start_position,
             cursor,
             is_loop: false,
@@ -273,10 +273,10 @@ impl<T: Clone + Debug + Default> Iterator for EventStream<T> {
 }
 
 impl<T: Clone + Debug + Default> EventStream<T> {
-    pub fn new(events: Vec<Event<T>>, resolution: u64) -> Self {
+    pub fn new(events: Vec<Event<T>>) -> Self {
         let mut result = Self {
             events,
-            cursor: Cursor::new(resolution),
+            cursor: Cursor::new(),
             gap_value: vec![Default::default()],
             ..Default::default()
         };
@@ -560,8 +560,8 @@ mod tests {
                 (15, (0, 0).into()).into(),
                 (17, (1, 0).into()).into(),
             ],
-            2,
         );
+        stream.cursor.resolution = 2;
 
         let mut expected: Vec<Vec<Event<u64>>> = vec![
             vec![(12, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
@@ -591,8 +591,8 @@ mod tests {
                 (15, (0, 0).into()).into(),
                 (17, (1, 0).into()).into(),
             ],
-            2,
         );
+        stream.cursor.resolution = 2;
 
         stream.fill_gaps = true;
 
@@ -622,8 +622,8 @@ mod tests {
                 (21, (1, 0).into()).into(),
                 (15, (0, 0).into()).into(),
             ],
-            2,
         );
+        stream.cursor.resolution = 2;
         stream.set_loop(true);
 
         let expected: Vec<Vec<Event<u64>>> = vec![
@@ -645,7 +645,8 @@ mod tests {
 
     #[test]
     fn stream_loop_enabled_afterwards() {
-        let mut stream = EventStream::new(vec![(0, (0, 0).into()).into()], 2);
+        let mut stream = EventStream::new(vec![(0, (0, 0).into()).into()]);
+        stream.cursor.resolution = 2;
         stream.next();
         stream.set_loop(true);
 
@@ -724,7 +725,9 @@ mod tests {
 
     #[test]
     fn pattern_schedule_event() {
-        let mut pattern = Pattern::new(Cursor::new(3));
+        let mut cursor = Cursor::new();
+        cursor.resolution = 3;
+        let mut pattern = Pattern::new(cursor);
         pattern.schedule_degree(1.into(), (0, 1).into(), (0, 1).into());
 
         assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
@@ -752,9 +755,17 @@ mod tests {
 
     #[test]
     fn pattern_next_polyrithmic() {
-        let mut cursor = Cursor::new(6);
+        let mut cursor = Cursor::new();
+        let resolution = 6_u64;
+        cursor.resolution = resolution;
         cursor.position = (2, 1).into();
         let mut pattern = Pattern::new(cursor);
+        pattern.degree.cursor.resolution = resolution;
+        pattern.modulation.cursor.resolution = resolution;
+        pattern.octave.cursor.resolution = resolution;
+        pattern.root.cursor.resolution = resolution;
+        pattern.scale.cursor.resolution = resolution;
+
         pattern.schedule_degree(0.into(), (0, 0).into(), (0, 2).into());
 
         pattern.schedule_degree(1.into(), (1, 0).into(), (0, 4).into());

@@ -8,10 +8,10 @@ pub struct Clock {
 }
 
 impl Clock {
-    pub fn new(tempo: Bpm, resolution: u64) -> Self {
+    pub fn new(tempo: Bpm) -> Self {
         Clock {
             tempo,
-            cursor: Cursor::new(resolution),
+            cursor: Cursor::new(),
         }
     }
 
@@ -33,18 +33,23 @@ impl Clock {
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock::new(Bpm::default(), settings::Clock::default().resolution)
+        Clock::new(Bpm::default())
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cursor {
     pub position: CursorPosition,
-    resolution: u64,
+    pub(crate) resolution: u64,
 }
 
 impl Cursor {
-    pub fn new(resolution: u64) -> Self {
+    pub fn new() -> Self {
+        let resolution = SETTINGS
+            .read()
+            .unwrap()
+            .get::<u64>("clock.resolution")
+            .unwrap();
         Cursor {
             position: CursorPosition::default(),
             resolution,
@@ -211,7 +216,8 @@ mod tests {
 
     #[test]
     fn increment_cursor() {
-        let mut cursor = Cursor::new(24);
+        let mut cursor = Cursor::new();
+        cursor.resolution = 24;
         let expected = CursorPosition { beat: 1, tick: 2 };
 
         assert_eq!(Some(expected), cursor.nth(25));
@@ -219,7 +225,8 @@ mod tests {
 
     #[test]
     fn cursor_add() {
-        let mut cursor = Cursor::new(24);
+        let mut cursor = Cursor::new();
+        cursor.resolution = 24;
         cursor.nth(3);
         let offset = CursorPosition {
             beat: 10,
@@ -238,8 +245,8 @@ mod tests {
 
     #[test]
     fn cursor_sub() {
-        let resolution = 24;
-        let mut cursor = Cursor::new(resolution);
+        let mut cursor = Cursor::new();
+        cursor.resolution = 24;
         cursor.position = (12, 5).into();
 
         let offset = CursorPosition {
