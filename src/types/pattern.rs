@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::clock::{Cursor, CursorPosition, Duration};
 
-use serde_derive::Deserialize;
+use serde::Deserialize;
 
 const DEFAULT_SCALE_NAME: &str = "Chromatic";
 const DEFAULT_PITCH_SET: [u64; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
