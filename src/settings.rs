@@ -4,14 +4,32 @@ use std::sync::RwLock;
 
 use config::Config;
 use lazy_static::lazy_static;
+use serde::{Deserialize, Serialize};
 
 lazy_static! {
     /// Settings singleton.
     pub static ref SETTINGS: RwLock<Config> = {
-        let mut config = Config::new();
-        config.set_default("clock.resolution", 1920).unwrap();
-        RwLock::new(config)
+        let settings: Settings = Config::new().try_into().unwrap();
+        RwLock::new(Config::try_from(&settings).unwrap())
     };
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Settings {
+    pub clock: Clock,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Clock {
+    pub resolution: u64,
+}
+
+impl Default for Clock {
+    fn default() -> Self {
+        Clock { resolution: 1920 }
+    }
 }
 
 #[cfg(test)]
@@ -21,7 +39,7 @@ mod tests {
     #[test]
     fn defaults() {
         assert_eq!(
-            1920,
+            Clock::default().resolution,
             SETTINGS
                 .read()
                 .unwrap()
@@ -39,7 +57,7 @@ mod tests {
         SETTINGS.write().unwrap().merge(file).unwrap();
 
         assert_eq!(
-            12,
+            Clock::default().resolution,
             SETTINGS
                 .read()
                 .unwrap()

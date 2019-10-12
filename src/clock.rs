@@ -1,6 +1,5 @@
+use crate::settings::{self, SETTINGS};
 use std::cmp::{Ord, Ordering};
-
-const DEFAULT_RESOLUTION: u64 = 1920;
 
 #[derive(Debug, Clone)]
 pub struct Clock {
@@ -34,7 +33,7 @@ impl Clock {
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock::new(Bpm::default(), DEFAULT_RESOLUTION)
+        Clock::new(Bpm::default(), settings::Clock::default().resolution)
     }
 }
 
@@ -61,7 +60,7 @@ impl Default for Cursor {
     fn default() -> Cursor {
         Cursor {
             position: CursorPosition::default(),
-            resolution: DEFAULT_RESOLUTION,
+            resolution: settings::Clock::default().resolution,
         }
     }
 }
