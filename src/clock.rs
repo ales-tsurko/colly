@@ -1,4 +1,4 @@
-use crate::settings::{self, SETTINGS};
+use crate::settings;
 use std::cmp::{Ord, Ordering};
 
 #[derive(Debug, Clone)]
@@ -8,15 +8,10 @@ pub struct Clock {
 }
 
 impl Clock {
-    pub fn new(tempo: Bpm) -> Self {
-        let resolution = SETTINGS
-            .read()
-            .unwrap()
-            .get::<u64>("clock.resolution")
-            .unwrap();
+    pub fn new(tempo: Bpm, options: &settings::Clock) -> Self {
         Clock {
             tempo,
-            cursor: Cursor::new(resolution),
+            cursor: Cursor::new(options.resolution),
         }
     }
 
@@ -38,7 +33,7 @@ impl Clock {
 
 impl Default for Clock {
     fn default() -> Self {
-        Clock::new(Bpm::default())
+        Clock::new(Bpm::default(), &settings::Clock::default())
     }
 }
 

@@ -1,25 +1,32 @@
 //! Application's settings.
 
-use std::sync::RwLock;
+use config::{Config, Environment};
+use serde::Deserialize;
 
-use config::Config;
-use lazy_static::lazy_static;
+const ENV_VAR_PREFIX: &str = "COLLY";
 
-lazy_static! {
-    /// Settings singleton.
-    pub static ref SETTINGS: RwLock<Config> = {
-        let mut config = Config::default();
-        config.set_default("clock.resolution", Clock::default().resolution as i64).unwrap();
-        RwLock::new(config)
-    };
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     pub clock: Clock,
 }
 
-#[derive(Debug)]
+impl Settings {
+    pub fn new<T>(source: T) -> Result<Self, config::ConfigError>
+    where
+        T: config::Source + Send + Sync + 'static,
+    {
+        let mut conf = Config::new();
+        conf.merge(source)?;
+        conf.merge(Environment::with_prefix(ENV_VAR_PREFIX).separator("__"))?;
+        conf.merge(Environment::with_prefix(ENV_VAR_PREFIX))?;
+
+        conf.try_into()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
 pub struct Clock {
     pub resolution: u64,
 }
@@ -35,32 +42,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults() {
-        assert_eq!(
-            Clock::default().resolution,
-            SETTINGS
-                .read()
-                .unwrap()
-                .get::<u64>("clock.resolution")
-                .unwrap()
-        );
-    }
-
-    #[test]
     fn merge_file() {
         let file = config::File::from_str(
             "[clock]\nresolution = 12",
             config::FileFormat::Toml,
         );
-        SETTINGS.write().unwrap().merge(file).unwrap();
+        let settings = Settings::new(file).unwrap();
 
-        assert_eq!(
-            12,
-            SETTINGS
-                .read()
-                .unwrap()
-                .get::<u64>("clock.resolution")
-                .unwrap()
-        );
+        assert_eq!(12, settings.clock.resolution,);
     }
 }
