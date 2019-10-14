@@ -31,13 +31,9 @@ macro_rules! impl_schedule_method {
         pub fn $name(
             &mut self,
             value: $e_type,
-            mut position: CursorPosition,
+            position: CursorPosition,
             duration: Duration,
         ) {
-            let off_position = position
-                .add_position(duration, self.cursor.resolution())
-                .sub_position((0,1).into(), self.cursor.resolution());
-
             self.$field.add_event(Event {
                 value: value.clone(),
                 position,
@@ -46,7 +42,7 @@ macro_rules! impl_schedule_method {
 
             self.$field.add_event(Event {
                 value,
-                position: off_position,
+                position: (position + duration) - 1,
                 state: EventState::Off,
             });
         }
@@ -57,7 +53,7 @@ impl Pattern {
     /// To schedule pattern set needed position to the passed cursor.
     pub fn new(mut cursor: Cursor) -> Self {
         let start_position = cursor.position;
-        cursor.position = (0, 0).into();
+        cursor.reset();
         let mut result = Self {
             degree: EventStream::new(vec![], cursor.resolution()),
             scale: EventStream::new(vec![], cursor.resolution()),
@@ -96,7 +92,7 @@ impl Pattern {
 
     /// Reset patern to start position.
     pub fn reset(&mut self) {
-        self.cursor.position = (0, 0).into();
+        self.cursor.reset();
         self.degree.reset();
         self.scale.reset();
         self.root.reset();
@@ -314,7 +310,7 @@ impl<T: Clone + Debug + Default> EventStream<T> {
     /// Reset position to beginning.
     pub fn reset(&mut self) {
         self.increment = 0;
-        self.cursor.position = (0, 0).into();
+        self.cursor.reset();
     }
 
     fn check_loop(&mut self) {
@@ -552,24 +548,31 @@ mod tests {
 
     #[test]
     fn event_stream() {
+        let resolution = 2;
         let mut stream = EventStream::new(
             vec![
-                (27, (2, 1).into()).into(),
-                (12, (0, 0).into()).into(),
-                (21, (1, 0).into()).into(),
-                (15, (0, 0).into()).into(),
-                (17, (1, 0).into()).into(),
+                (27, (2, 1, resolution).into()).into(),
+                (12, (0, 0, resolution).into()).into(),
+                (21, (1, 0, resolution).into()).into(),
+                (15, (0, 0, resolution).into()).into(),
+                (17, (1, 0, resolution).into()).into(),
             ],
-            2,
+            resolution,
         );
 
         let mut expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(12, (0, 0).into()).into(), (15u64, (0, 0).into()).into()],
+            vec![
+                (12, (0, 0, resolution).into()).into(),
+                (15u64, (0, 0, resolution).into()).into(),
+            ],
             vec![],
-            vec![(21, (1, 0).into()).into(), (17u64, (1, 0).into()).into()],
+            vec![
+                (21, (1, 0, resolution).into()).into(),
+                (17u64, (1, 0, resolution).into()).into(),
+            ],
             vec![],
             vec![],
-            vec![(27, (2, 1).into()).into()],
+            vec![(27, (2, 1, resolution).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -583,26 +586,42 @@ mod tests {
 
     #[test]
     fn event_stream_fill_gaps() {
+        let resolution = 2;
         let mut stream = EventStream::new(
             vec![
-                (27, (2, 1).into()).into(),
-                (12, (0, 0).into()).into(),
-                (21, (1, 0).into()).into(),
-                (15, (0, 0).into()).into(),
-                (17, (1, 0).into()).into(),
+                (27, (2, 1, resolution).into()).into(),
+                (12, (0, 0, resolution).into()).into(),
+                (21, (1, 0, resolution).into()).into(),
+                (15, (0, 0, resolution).into()).into(),
+                (17, (1, 0, resolution).into()).into(),
             ],
-            2,
+            resolution,
         );
 
         stream.fill_gaps = true;
 
         let mut expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(12, (0, 0).into()).into(), (15, (0, 0).into()).into()],
-            vec![(12, (0, 1).into()).into(), (15, (0, 1).into()).into()],
-            vec![(21, (1, 0).into()).into(), (17, (1, 0).into()).into()],
-            vec![(21, (1, 1).into()).into(), (17, (1, 1).into()).into()],
-            vec![(21, (2, 0).into()).into(), (17, (2, 0).into()).into()],
-            vec![(27, (2, 1).into()).into()],
+            vec![
+                (12, (0, 0, resolution).into()).into(),
+                (15, (0, 0, resolution).into()).into(),
+            ],
+            vec![
+                (12, (0, 1, resolution).into()).into(),
+                (15, (0, 1, resolution).into()).into(),
+            ],
+            vec![
+                (21, (1, 0, resolution).into()).into(),
+                (17, (1, 0, resolution).into()).into(),
+            ],
+            vec![
+                (21, (1, 1, resolution).into()).into(),
+                (17, (1, 1, resolution).into()).into(),
+            ],
+            vec![
+                (21, (2, 0, resolution).into()).into(),
+                (17, (2, 0, resolution).into()).into(),
+            ],
+            vec![(27, (2, 1, resolution).into()).into()],
         ];
 
         for _ in 0..expected.len() {
@@ -616,23 +635,24 @@ mod tests {
 
     #[test]
     fn stream_loop() {
+        let resolution = 2;
         let mut stream = EventStream::new(
             vec![
-                (27, (2, 1).into()).into(),
-                (21, (1, 0).into()).into(),
-                (15, (0, 0).into()).into(),
+                (27, (2, 1, resolution).into()).into(),
+                (21, (1, 0, resolution).into()).into(),
+                (15, (0, 0, resolution).into()).into(),
             ],
-            2,
+            resolution,
         );
         stream.set_loop(true);
 
         let expected: Vec<Vec<Event<u64>>> = vec![
-            vec![(15, (0, 0).into()).into()],
+            vec![(15, (0, 0, resolution).into()).into()],
             vec![],
-            vec![(21, (1, 0).into()).into()],
+            vec![(21, (1, 0, resolution).into()).into()],
             vec![],
             vec![],
-            vec![(27, (2, 1).into()).into()],
+            vec![(27, (2, 1, resolution).into()).into()],
         ];
 
         for n in 0..expected.len() * 3 {
@@ -645,12 +665,19 @@ mod tests {
 
     #[test]
     fn stream_loop_enabled_afterwards() {
-        let mut stream = EventStream::new(vec![(0, (0, 0).into()).into()], 2);
+        let resolution = 2;
+        let mut stream = EventStream::new(
+            vec![(0, (0, 0, resolution).into()).into()],
+            resolution,
+        );
         stream.next();
         stream.set_loop(true);
 
         for _ in 0..5 {
-            assert_eq!(Some(vec![(0, (0, 0).into()).into()]), stream.next());
+            assert_eq!(
+                Some(vec![(0, (0, 0, resolution).into()).into()]),
+                stream.next()
+            );
         }
     }
 
@@ -724,8 +751,13 @@ mod tests {
 
     #[test]
     fn pattern_schedule_event() {
-        let mut pattern = Pattern::new(Cursor::new(3));
-        pattern.schedule_degree(1.into(), (0, 1).into(), (0, 1).into());
+        let resolution = 3;
+        let mut pattern = Pattern::new(Cursor::new(resolution));
+        pattern.schedule_degree(
+            1.into(),
+            (0, 1, resolution).into(),
+            (0, 1, resolution).into(),
+        );
 
         assert_eq!(Vec::<Event<Value>>::new(), pattern.next().unwrap());
 
@@ -733,12 +765,12 @@ mod tests {
             vec![
                 Event {
                     value: Value::Pitch(61),
-                    position: (0, 1).into(),
+                    position: (0, 1, resolution).into(),
                     state: EventState::On,
                 },
                 Event {
                     value: Value::Pitch(61),
-                    position: (0, 1).into(),
+                    position: (0, 1, resolution).into(),
                     state: EventState::Off,
                 },
             ],
@@ -752,47 +784,64 @@ mod tests {
 
     #[test]
     fn pattern_next_polyrithmic() {
-        let mut cursor = Cursor::new(6);
-        cursor.position = (2, 1).into();
+        let resolution = 6;
+        let mut cursor = Cursor::new(resolution);
+        cursor.position = (2, 1, resolution).into();
         let mut pattern = Pattern::new(cursor);
-        pattern.schedule_degree(0.into(), (0, 0).into(), (0, 2).into());
+        pattern.schedule_degree(
+            0.into(),
+            (0, 0, resolution).into(),
+            (0, 2, resolution).into(),
+        );
 
-        pattern.schedule_degree(1.into(), (1, 0).into(), (0, 4).into());
+        pattern.schedule_degree(
+            1.into(),
+            (1, 0, resolution).into(),
+            (0, 4, resolution).into(),
+        );
 
         pattern.schedule_modulation(
             Modulation::new("v", 0.1),
-            (0, 0).into(),
-            (0, 3).into(),
+            (0, 0, resolution).into(),
+            (0, 3, resolution).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.2),
-            (1, 0).into(),
-            (0, 3).into(),
+            (1, 0, resolution).into(),
+            (0, 3, resolution).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.3),
-            (2, 0).into(),
-            (0, 3).into(),
+            (2, 0, resolution).into(),
+            (0, 3, resolution).into(),
         );
         pattern.schedule_modulation(
             Modulation::new("v", 0.4),
-            (3, 0).into(),
-            (0, 3).into(),
+            (3, 0, resolution).into(),
+            (0, 3, resolution).into(),
         );
 
         let mut expected: Vec<Vec<Event<Value>>> = vec![
             vec![
                 Event::new(
                     Value::Modulation("v".to_string(), 0.1),
-                    (0, 0).into(),
+                    (0, 0, resolution).into(),
                     EventState::On,
                 ),
-                Event::new(Value::Pitch(60), (0, 0).into(), EventState::On),
+                Event::new(
+                    Value::Pitch(60),
+                    (0, 0, resolution).into(),
+                    EventState::On,
+                ),
             ],
-            vec![Event::new(Value::Pitch(60), (0, 1).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Pitch(60),
+                (0, 1, resolution).into(),
+                EventState::Off,
+            )],
             vec![Event::new(
                 Value::Modulation("v".to_string(), 0.1),
-                (0, 2).into(),
+                (0, 2, resolution).into(),
                 EventState::Off,
             )],
             vec![],
@@ -801,32 +850,48 @@ mod tests {
             vec![
                 Event::new(
                     Value::Modulation("v".to_string(), 0.2),
-                    (1, 0).into(),
+                    (1, 0, resolution).into(),
                     EventState::On,
                 ),
-                Event::new(Value::Pitch(61), (1, 0).into(), EventState::On),
+                Event::new(
+                    Value::Pitch(61),
+                    (1, 0, resolution).into(),
+                    EventState::On,
+                ),
             ],
             vec![],
             vec![Event::new(
                 Value::Modulation("v".to_string(), 0.2),
-                (1, 2).into(),
+                (1, 2, resolution).into(),
                 EventState::Off,
             )],
-            vec![Event::new(Value::Pitch(61), (1, 3).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Pitch(61),
+                (1, 3, resolution).into(),
+                EventState::Off,
+            )],
             vec![],
             vec![],
             vec![
                 Event::new(
                     Value::Modulation("v".to_string(), 0.3),
-                    (2, 0).into(),
+                    (2, 0, resolution).into(),
                     EventState::On,
                 ),
-                Event::new(Value::Pitch(60), (2, 0).into(), EventState::On),
+                Event::new(
+                    Value::Pitch(60),
+                    (2, 0, resolution).into(),
+                    EventState::On,
+                ),
             ],
-            vec![Event::new(Value::Pitch(60), (2, 1).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Pitch(60),
+                (2, 1, resolution).into(),
+                EventState::Off,
+            )],
             vec![Event::new(
                 Value::Modulation("v".to_string(), 0.3),
-                (2, 2).into(),
+                (2, 2, resolution).into(),
                 EventState::Off,
             )],
             vec![],
@@ -835,18 +900,26 @@ mod tests {
             vec![
                 Event::new(
                     Value::Modulation("v".to_string(), 0.4),
-                    (3, 0).into(),
+                    (3, 0, resolution).into(),
                     EventState::On,
                 ),
-                Event::new(Value::Pitch(61), (3, 0).into(), EventState::On),
+                Event::new(
+                    Value::Pitch(61),
+                    (3, 0, resolution).into(),
+                    EventState::On,
+                ),
             ],
             vec![],
             vec![Event::new(
                 Value::Modulation("v".to_string(), 0.4),
-                (3, 2).into(),
+                (3, 2, resolution).into(),
                 EventState::Off,
             )],
-            vec![Event::new(Value::Pitch(61), (3, 3).into(), EventState::Off)],
+            vec![Event::new(
+                Value::Pitch(61),
+                (3, 3, resolution).into(),
+                EventState::Off,
+            )],
             vec![],
             vec![],
             // vec![],
