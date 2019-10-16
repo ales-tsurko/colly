@@ -1,5 +1,6 @@
 use crate::settings;
 use std::cmp::{Ord, Ordering};
+use std::time;
 
 pub type Resolution = u64;
 
@@ -7,6 +8,8 @@ pub type Resolution = u64;
 pub struct Clock {
     tempo: Bpm,
     cursor: Cursor,
+    tick_interval: time::Duration,
+    resolution: Resolution,
 }
 
 impl Clock {
@@ -14,6 +17,8 @@ impl Clock {
         Clock {
             tempo,
             cursor: Cursor::new(options.resolution),
+            tick_interval: time::Duration::from_secs_f64(1.0 / options.resolution as f64),
+            resolution: options.resolution,
         }
     }
 
@@ -29,8 +34,9 @@ impl Clock {
         &self.cursor
     }
 
-    //TODO:
-    // pub fn tick_interval(&self)
+    pub fn tick_interval(&self) -> time::Duration {
+        self.tick_interval
+    }
 }
 
 impl Default for Clock {
