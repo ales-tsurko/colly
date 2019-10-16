@@ -7,15 +7,14 @@ AssignStatement = { PatternAssignment | VariableAssignment | PropertiesAssignmen
 
 VariableAssignment = { Variable ~ "=" ~ SuperExpression }
 PropertiesAssignment = { SuperExpression ~ Properties }
-SuperExpression = {  MethodCall | Expression }
-MethodCall = { Expression ~ FunctionExpression+ }
+SuperExpression = { MethodCall | Expression }
+MethodCall = { Expression ~ FunctionCall+ }
 Expression = { 
     PropertyGetter
     | Boolean
-    | FunctionExpression
-    | Identifier 
+    | FunctionCall
     | Variable 
-    | Pattern
+    | PatternSuperExpression
     | Number 
     | String 
     | PatternSlot 
@@ -23,8 +22,6 @@ Expression = {
     | Mixer
     | Properties
     | Array }
-FunctionExpression = { FunctionCall | FunctionListCall }
-FunctionListCall = { "[" ~ NEWLINE* ~ FunctionExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ FunctionExpression ~ NEWLINE*)* ~ "]" }
 FunctionCall = { Identifier | "(" ~ NEWLINE* ~ Identifier ~ NEWLINE* ~ (Expression ~ NEWLINE*)+ ~ ")" }
 Boolean = { "true" | "false" }
 PatternSlot = ${ Track ~ "@" ~ UnsignedInt }
@@ -63,8 +60,9 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 PatternAssignment = { PatternSlot ~ PatternSuperExpression }
 PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
-PatternExpression = { Pattern ~ PatternMacro? ~ ("=>" ~ FunctionExpression*)? ~ Properties? }
-PatternMacro = { FunctionExpression }
+PatternExpression = { Pattern ~ PatternInput? ~ ("&" ~ PatternMethod? ~ Properties?)? }
+PatternMethod = { FunctionCall+ }
+PatternInput = { Expression }
 Pattern = { "|" ~ !Tie ~ BeatEvent* ~  "|" }
 BeatEvent = ${ Event+ }
 Event = { Group | Chord | ParenthesisedEventGroup }
@@ -73,11 +71,11 @@ Chord = ${ "[" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ "]" ~ EventMethod* }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
     Octave 
-    | (( Note | Tie | Pause | Modulation | MacroTarget ) ~ EventMethod*) }
+    | (( Note | Tie | Pause | Modulation | PatternInlet ) ~ EventMethod*) }
 Note = ${ Alteration* ~ Pitch }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
-MacroTarget = { "%" }
+PatternInlet = { "%" }
 Tie = { "_" }
 Octave = { "o" | "O" }
 Alteration = { "+" | "-" }

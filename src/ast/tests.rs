@@ -120,7 +120,6 @@ fn test_parse_function_expression() {
         CollyParser::parse_source_for_rule("(foo bar)", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 
-    let ast: Ast = "(foo true)".parse().unwrap();
     let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: vec![Expression::Boolean(true)],
@@ -129,18 +128,17 @@ fn test_parse_function_expression() {
         CollyParser::parse_source_for_rule("(foo true)", Rule::FunctionCall);
     assert_eq!(expected, result.unwrap());
 
-    let ast: Ast = "(foo 1 (bar 2 false))".parse().unwrap();
     let expected = FunctionCall {
         identifier: Identifier("foo".to_string()),
         parameters: vec![
             Expression::Number(1.0),
-            Expression::Function(FunctionExpression::Function(FunctionCall {
+            Expression::Function(FunctionCall {
                 identifier: Identifier("bar".to_string()),
                 parameters: vec![
                     Expression::Number(2.0),
                     Expression::Boolean(false),
                 ],
-            })),
+            }),
         ],
     };
     let result: ParseResult<FunctionCall> = CollyParser::parse_source_for_rule(
@@ -148,70 +146,6 @@ fn test_parse_function_expression() {
         Rule::FunctionCall,
     );
     assert_eq!(expected, result.unwrap());
-}
-
-#[test]
-fn test_parse_function_list() {
-    let ast: Ast = "[foo, bar]".parse().unwrap();
-    let expected = expected_from_func_calls(vec![
-        FunctionCall {
-            identifier: Identifier("foo".to_string()),
-            parameters: Vec::new(),
-        },
-        FunctionCall {
-            identifier: Identifier("bar".to_string()),
-            parameters: Vec::new(),
-        },
-    ]);
-    assert_eq!(ast.0, expected);
-
-    let ast: Ast =
-        "[foo, (bar true), (baz 1 (waldo 2 3 [fred, (corge false)]))]"
-            .parse()
-            .unwrap();
-    let expected = expected_from_func_calls(vec![
-        FunctionCall {
-            identifier: Identifier("foo".to_string()),
-            parameters: Vec::new(),
-        },
-        FunctionCall {
-            identifier: Identifier("bar".to_string()),
-            parameters: vec![Expression::Boolean(true)],
-        },
-        FunctionCall {
-            identifier: Identifier("baz".to_string()),
-            parameters: vec![
-                Expression::Number(1.0),
-                FunctionCall {
-                    identifier: Identifier("waldo".to_string()),
-                    parameters: vec![
-                        Expression::Number(2.0),
-                        Expression::Number(3.0),
-                        vec![
-                            //ohmy
-                            FunctionCall {
-                                identifier: Identifier("fred".to_string()),
-                                parameters: Vec::new(),
-                            },
-                            FunctionCall {
-                                identifier: Identifier("corge".to_string()),
-                                parameters: vec![Expression::Boolean(false)],
-                            },
-                        ]
-                        .into(),
-                    ],
-                }
-                .into(),
-            ],
-        },
-    ]);
-    assert_eq!(ast.0, expected);
-
-    fn expected_from_func_calls(value: Vec<FunctionCall>) -> Vec<Statement> {
-        vec![Statement::SuperExpression(SuperExpression::Expression(
-            Expression::Function(FunctionExpression::FunctionList(value)),
-        ))]
-    }
 }
 
 #[test]
@@ -248,7 +182,14 @@ fn test_parse_array() {
 fn test_parse_pattern_as_expression() {
     let result: ParseResult<Expression> =
         CollyParser::parse_source_for_rule("||", Rule::Expression);
-    let expected = Expression::Pattern(Pattern(Vec::new()));
+    let expected = Expression::PatternSuperExpression(
+        PatternSuperExpression::Expression(PatternExpression {
+            pattern: Pattern(Vec::new()),
+            input: None,
+            methods: Vec::new(),
+            properties: None,
+        }),
+    );
     assert_eq!(expected, result.unwrap());
 }
 
@@ -319,7 +260,7 @@ fn test_parse_property_value() {
         CollyParser::parse_source_for_rule("||", Rule::PropertyValue);
     let expected = PropertyValue::PatternExpression(PatternExpression {
         pattern: Pattern(Vec::new()),
-        pattern_macro: None,
+        input: None,
         methods: Vec::new(),
         properties: None,
     });
@@ -335,18 +276,18 @@ fn test_parse_method_call() {
     let expected = MethodCall {
         caller: Expression::Variable(Identifier("foo".into())),
         callee: vec![
-            FunctionExpression::Function(FunctionCall {
+            FunctionCall {
                 identifier: Identifier("bar".into()),
                 parameters: Vec::new(),
-            }),
-            FunctionExpression::Function(FunctionCall {
+            },
+            FunctionCall {
                 identifier: Identifier("baz".into()),
                 parameters: vec![
                     Expression::Number(1.0),
                     Expression::Number(-2.0),
                     Expression::Boolean(true),
                 ],
-            }),
+            },
         ],
     };
     assert_eq!(expected, result.unwrap());
@@ -375,10 +316,10 @@ fn test_parse_variable_assignment() {
                 parameters: Vec::new(),
             }
             .into(),
-            callee: vec![FunctionExpression::Function(FunctionCall {
+            callee: vec![FunctionCall {
                 identifier: Identifier("baz".into()),
                 parameters: vec![Expression::Boolean(true)],
-            })],
+            }],
         }),
     };
 
@@ -649,10 +590,10 @@ fn test_parse_pattern_expression() {
         CollyParser::parse_source_for_rule("|| hello", Rule::PatternExpression);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        pattern_macro: Some(FunctionExpression::Function(FunctionCall {
+        input: Some(Box::new(Expression::Function(FunctionCall {
             identifier: Identifier("hello".into()),
             parameters: Vec::new(),
-        })),
+        }))),
         methods: Vec::new(),
         properties: None,
     };
@@ -661,16 +602,22 @@ fn test_parse_pattern_expression() {
 
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| => world",
+            "|| & hello world",
             Rule::PatternExpression,
         );
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        pattern_macro: None,
-        methods: vec![FunctionExpression::Function(FunctionCall {
-            identifier: Identifier("world".into()),
-            parameters: Vec::new(),
-        })],
+        input: None,
+        methods: vec![
+            FunctionCall {
+                identifier: Identifier("hello".into()),
+                parameters: Vec::new(),
+            },
+            FunctionCall {
+                identifier: Identifier("world".into()),
+                parameters: Vec::new(),
+            },
+        ],
         properties: None,
     };
 
@@ -678,7 +625,7 @@ fn test_parse_pattern_expression() {
 
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| {foo: true}",
+            "|| & {foo: true}",
             Rule::PatternExpression,
         );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
@@ -689,7 +636,7 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        pattern_macro: None,
+        input: None,
         methods: Vec::new(),
         properties: Some(properties),
     };
@@ -698,7 +645,7 @@ fn test_parse_pattern_expression() {
 
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| hello => world {foo: true}",
+            "|| hello & world {foo: true}",
             Rule::PatternExpression,
         );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
@@ -709,14 +656,14 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        pattern_macro: Some(FunctionExpression::Function(FunctionCall {
+        input: Some(Box::new(Expression::Function(FunctionCall {
             identifier: Identifier("hello".into()),
             parameters: Vec::new(),
-        })),
-        methods: vec![FunctionExpression::Function(FunctionCall {
+        }))),
+        methods: vec![FunctionCall {
             identifier: Identifier("world".into()),
             parameters: Vec::new(),
-        })],
+        }],
         properties: Some(properties),
     };
 
@@ -733,19 +680,19 @@ fn test_parse_pattern_expression_list() {
     let expected = PatternSuperExpression::ExpressionList(vec![
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            pattern_macro: None,
+            input: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            pattern_macro: None,
+            input: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            pattern_macro: None,
+            input: None,
             methods: Vec::new(),
             properties: None,
         },
@@ -807,7 +754,7 @@ fn test_pattern_assignment() {
         assignee: Expression::PatternSlot((11, 12)),
         assignment: PatternSuperExpression::Expression(PatternExpression {
             pattern: Pattern(Vec::new()),
-            pattern_macro: None,
+            input: None,
             methods: Vec::new(),
             properties: None,
         }),
@@ -826,23 +773,24 @@ fn test_parse_event_as_event_method() {
 #[should_panic]
 #[test]
 fn parse_lonely_tie() {
-    let result: ParseResult<Pattern> = CollyParser::parse_source_for_rule("| _ 0 |", Rule::Pattern);
+    let result: ParseResult<Pattern> =
+        CollyParser::parse_source_for_rule("| _ 0 |", Rule::Pattern);
     result.unwrap();
 }
 
 #[allow(dead_code)]
 impl From<FunctionCall> for Expression {
     fn from(func_call: FunctionCall) -> Self {
-        Expression::Function(FunctionExpression::Function(func_call))
+        Expression::Function(func_call)
     }
 }
 
-#[allow(dead_code)]
-impl From<Vec<FunctionCall>> for Expression {
-    fn from(func_calls: Vec<FunctionCall>) -> Self {
-        Expression::Function(FunctionExpression::FunctionList(func_calls))
-    }
-}
+// #[allow(dead_code)]
+// impl From<Vec<FunctionCall>> for Expression {
+// fn from(func_calls: Vec<FunctionCall>) -> Self {
+// Expression::Function(FunctionExpression::FunctionList(func_calls))
+// }
+// }
 
 #[allow(dead_code)]
 impl From<Expression> for SuperExpression {

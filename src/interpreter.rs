@@ -79,13 +79,8 @@ impl Interpreter<Value> for ast::Expression {
         use ast::Expression;
         match self {
             Expression::Boolean(value) => Ok(Value::from(value)),
-            Expression::Identifier(value) => {
-                Ok(Value::from(Identifier::from(value)))
-            }
             Expression::Variable(id) => Ok(context.variables.get(&id.into())),
-            Expression::Pattern(value) => {
-                Ok(Value::from(value.interpret(context)?))
-            }
+            Expression::PatternSuperExpression(value) => unimplemented!(),
             Expression::Number(value) => Ok(Value::from(value)),
             Expression::String(value) => Ok(Value::from(value)),
             Expression::PatternSlot((track_n, slot_n)) => {
@@ -539,7 +534,7 @@ impl AtomInterpreter {
             ast::PatternAtomValue::Pause => {
                 Ok(Some(self.next_intermediate(Audible::Pause, &atom.methods)))
             }
-            ast::PatternAtomValue::MacroTarget => unimplemented!(),
+            ast::PatternAtomValue::PatternInlet => unimplemented!(),
             ast::PatternAtomValue::Modulation(modulation) => unimplemented!(),
         }
     }
