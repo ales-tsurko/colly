@@ -785,13 +785,6 @@ impl From<FunctionCall> for Expression {
     }
 }
 
-// #[allow(dead_code)]
-// impl From<Vec<FunctionCall>> for Expression {
-// fn from(func_calls: Vec<FunctionCall>) -> Self {
-// Expression::Function(FunctionExpression::FunctionList(func_calls))
-// }
-// }
-
 #[allow(dead_code)]
 impl From<Expression> for SuperExpression {
     fn from(expression: Expression) -> Self {
