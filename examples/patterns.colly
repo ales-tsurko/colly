@@ -31,8 +31,8 @@ $1@7 | O a.a -0__0 oo0 _ _ +0 |
 $1@8 | ( a [f r0 (01 ([0%] 01 (01)): 0)] (01 0 (00 1) )** ) |
 $1@10 | 01*:23 01[0 1 23]* (012 34)* 01(23 4)5* 01 |
 
-$1@9           | 0 0 0  %  | (choose "01" "9") => (every 4 reverse) (every 2 (choose |001| |[012]|)) {
-     velocity: | p % FF pp | (choose "FF" "ppp"),
+$1@9           | 0 0 0  %  | [(choose |01| |9|), foo] & (every 4 reverse) (every 2 (choose |001| |[012]|)) {
+     velocity: | p % FF pp | (choose |FF| |ppp|),
           CC1: | r F p  F  | },
                | 0 |
 
