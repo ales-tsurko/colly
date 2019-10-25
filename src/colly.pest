@@ -60,9 +60,8 @@ COMMENT = _{ "#" ~ (!"\n" ~ ANY)* }
 PatternAssignment = { PatternSlot ~ PatternSuperExpression }
 PatternSuperExpression = { PatternExpressionList | PatternExpression }
 PatternExpressionList = { PatternExpression ~ NEWLINE* ~ ("," ~ NEWLINE* ~ PatternExpression)+ }
-PatternExpression = { Pattern ~ PatternInput? ~ ("&" ~ PatternMethod? ~ Properties?)? }
+PatternExpression = { Pattern ~ PatternMethod? ~ Properties? }
 PatternMethod = { FunctionCall+ }
-PatternInput = { Expression }
 Pattern = { "|" ~ !Tie ~ BeatEvent* ~  "|" }
 BeatEvent = ${ Event+ }
 Event = { Group | Chord | ParenthesisedEventGroup }
@@ -71,15 +70,13 @@ Chord = ${ "[" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ "]" ~ EventMethod* }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
     Octave 
-    | (( Note | Tie | Pause | Modulation | PatternInlet ) ~ EventMethod*) }
+    | (( Note | Tie | Pause | PatternInlet | Interpolation ) ~ EventMethod*) }
 Note = ${ Alteration* ~ Pitch }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
-PatternInlet = { "%" }
 Tie = { "_" }
 Octave = { "o" | "O" }
 Alteration = { "+" | "-" }
 EventMethod = { "." | "*" | ":" }
-Modulation = { ModulationSymbol | LiteralModulation }
-ModulationSymbol = { "p" | "F" | "<" | ">" }
-LiteralModulation = { ("{" ~ WHITESPACE* ~ Number ~ WHITESPACE* ~ "}") }
+Interpolation = { "~" }
+PatternInlet = !{ "{" ~ Expression ~ "}" }

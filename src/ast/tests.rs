@@ -185,7 +185,6 @@ fn test_parse_pattern_as_expression() {
     let expected = Expression::PatternSuperExpression(
         PatternSuperExpression::Expression(PatternExpression {
             pattern: Pattern(Vec::new()),
-            input: None,
             methods: Vec::new(),
             properties: None,
         }),
@@ -260,7 +259,6 @@ fn test_parse_property_value() {
         CollyParser::parse_source_for_rule("||", Rule::PropertyValue);
     let expected = PropertyValue::PatternExpression(PatternExpression {
         pattern: Pattern(Vec::new()),
-        input: None,
         methods: Vec::new(),
         properties: None,
     });
@@ -548,19 +546,6 @@ fn parse_atom_with_methods() {
     };
 
     assert_eq!(expected, result.unwrap());
-
-    let result: ParseResult<PatternAtom> =
-        CollyParser::parse_source_for_rule("F*:.", Rule::PatternAtom);
-    let expected = PatternAtom {
-        value: PatternAtomValue::Modulation(Modulation::Up),
-        methods: vec![
-            EventMethod::Multiply,
-            EventMethod::Divide,
-            EventMethod::Dot,
-        ],
-    };
-
-    assert_eq!(expected, result.unwrap());
 }
 
 #[test]
@@ -587,27 +572,12 @@ fn parse_note_with_alterations() {
 #[test]
 fn test_parse_pattern_expression() {
     let result: ParseResult<PatternExpression> =
-        CollyParser::parse_source_for_rule("|| hello", Rule::PatternExpression);
-    let expected = PatternExpression {
-        pattern: Pattern(vec![]),
-        input: Some(Box::new(Expression::Function(FunctionCall {
-            identifier: Identifier("hello".into()),
-            parameters: Vec::new(),
-        }))),
-        methods: Vec::new(),
-        properties: None,
-    };
-
-    assert_eq!(expected, result.unwrap());
-
-    let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| & hello world",
+            "|| hello world",
             Rule::PatternExpression,
         );
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        input: None,
         methods: vec![
             FunctionCall {
                 identifier: Identifier("hello".into()),
@@ -625,7 +595,7 @@ fn test_parse_pattern_expression() {
 
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| & {foo: true}",
+            "|| {foo: true}",
             Rule::PatternExpression,
         );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
@@ -636,7 +606,6 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        input: None,
         methods: Vec::new(),
         properties: Some(properties),
     };
@@ -645,7 +614,7 @@ fn test_parse_pattern_expression() {
 
     let result: ParseResult<PatternExpression> =
         CollyParser::parse_source_for_rule(
-            "|| hello & world {foo: true}",
+            "|| world {foo: true}",
             Rule::PatternExpression,
         );
     let mut map: HashMap<Identifier, PropertyValue> = HashMap::new();
@@ -656,10 +625,6 @@ fn test_parse_pattern_expression() {
     let properties = Properties(map);
     let expected = PatternExpression {
         pattern: Pattern(vec![]),
-        input: Some(Box::new(Expression::Function(FunctionCall {
-            identifier: Identifier("hello".into()),
-            parameters: Vec::new(),
-        }))),
         methods: vec![FunctionCall {
             identifier: Identifier("world".into()),
             parameters: Vec::new(),
@@ -680,19 +645,16 @@ fn test_parse_pattern_expression_list() {
     let expected = PatternSuperExpression::ExpressionList(vec![
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            input: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            input: None,
             methods: Vec::new(),
             properties: None,
         },
         PatternExpression {
             pattern: Pattern(Vec::new()),
-            input: None,
             methods: Vec::new(),
             properties: None,
         },
@@ -731,19 +693,36 @@ fn test_parse_pitch() {
 }
 
 #[test]
-fn test_parse_modulation_atom() {
-    let result: ParseResult<Modulation> =
-        CollyParser::parse_source_for_rule("{127}", Rule::Modulation);
-    let expected = Modulation::Literal(127.0);
+fn test_parse_pattern_inlet() {
+    let result: ParseResult<PatternAtom> = CollyParser::parse_source_for_rule(
+        "{ (choose [1,2,3]) }",
+        Rule::PatternAtom,
+    );
+    let expected = PatternAtom {
+        value: PatternAtomValue::PatternInlet(Expression::Function(
+            FunctionCall {
+                identifier: Identifier("choose".to_string()),
+                parameters: vec![Expression::Array(vec![
+                    Expression::Number(1.0).into(),
+                    Expression::Number(2.0).into(),
+                    Expression::Number(3.0).into(),
+                ])],
+            },
+        )),
+        methods: Vec::new(),
+    };
     assert_eq!(expected, result.unwrap());
+}
 
-    let result: ParseResult<Modulation> =
-        CollyParser::parse_source_for_rule("p", Rule::Modulation);
-    assert_eq!(Modulation::Down, result.unwrap());
-
-    let result: ParseResult<Modulation> =
-        CollyParser::parse_source_for_rule("F", Rule::Modulation);
-    assert_eq!(Modulation::Up, result.unwrap());
+#[test]
+fn test_parse_interpolation() {
+    let result: ParseResult<PatternAtom> =
+        CollyParser::parse_source_for_rule("~", Rule::PatternAtom);
+    let expected = PatternAtom {
+        value: PatternAtomValue::Interpolation,
+        methods: Vec::new(),
+    };
+    assert_eq!(expected, result.unwrap());
 }
 
 #[test]
@@ -754,7 +733,6 @@ fn test_pattern_assignment() {
         assignee: Expression::PatternSlot((11, 12)),
         assignment: PatternSuperExpression::Expression(PatternExpression {
             pattern: Pattern(Vec::new()),
-            input: None,
             methods: Vec::new(),
             properties: None,
         }),

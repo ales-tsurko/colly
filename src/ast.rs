@@ -454,7 +454,6 @@ impl PatternSuperExpression {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct PatternExpression {
     pub pattern: Pattern,
-    pub input: Option<Box<Expression>>,
     pub methods: Vec<FunctionCall>,
     pub properties: Option<Properties>,
 }
@@ -470,7 +469,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternExpression {
         for pair in inner {
             match pair.as_rule() {
                 Rule::Pattern => result.parse_pattern(pair)?,
-                Rule::PatternInput => result.parse_pattern_input(pair)?,
                 Rule::PatternMethod => result.parse_method(pair)?,
                 Rule::Properties => result.parse_properties(pair)?,
                 _ => CollyParser::rule_error(&pair)?,
@@ -484,12 +482,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternExpression {
 impl PatternExpression {
     fn parse_pattern(&mut self, pair: Pair<'_, Rule>) -> ParseResult<()> {
         self.pattern = pair.try_into()?;
-        Ok(())
-    }
-
-    fn parse_pattern_input(&mut self, pair: Pair<'_, Rule>) -> ParseResult<()> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        self.input = Some(Box::new(inner.try_into()?));
         Ok(())
     }
 
@@ -632,8 +624,8 @@ pub enum PatternAtomValue {
     Note(Note),
     Tie,
     Pause,
-    PatternInlet,
-    Modulation(Modulation),
+    PatternInlet(Expression),
+    Interpolation,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -666,12 +658,9 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
                 value: PatternAtomValue::Pause,
                 methods: Self::parse_methods(inner)?,
             }),
-            Rule::PatternInlet => Ok(PatternAtom {
-                value: PatternAtomValue::PatternInlet,
-                methods: Self::parse_methods(inner)?,
-            }),
-            Rule::Modulation => Ok(PatternAtom {
-                value: PatternAtomValue::Modulation(value.try_into()?),
+            Rule::PatternInlet => Self::from_inlet(value, inner),
+            Rule::Interpolation => Ok(PatternAtom {
+                value: PatternAtomValue::Interpolation,
                 methods: Self::parse_methods(inner)?,
             }),
             _ => CollyParser::rule_error(&value),
@@ -688,6 +677,18 @@ impl PatternAtom {
         }
 
         Ok(methods)
+    }
+
+    fn from_inlet(
+        value: Pair<'_, Rule>,
+        methods: Pairs<'_, Rule>,
+    ) -> ParseResult<Self> {
+        let expression = CollyParser::first_inner_for_pair(value)?;
+
+        Ok(PatternAtom {
+            value: PatternAtomValue::PatternInlet(expression.try_into()?),
+            methods: Self::parse_methods(methods)?,
+        })
     }
 }
 
@@ -772,47 +773,6 @@ impl<'a> TryFrom<Pair<'a, Rule>> for Alteration {
         match pair.as_str() {
             "+" => Ok(Alteration::Up),
             "-" => Ok(Alteration::Down),
-            _ => CollyParser::rule_error(&pair),
-        }
-    }
-}
-
-//
-#[derive(Debug, Clone, PartialEq)]
-pub enum Modulation {
-    Down,
-    Up,
-    Crescendo,
-    Diminuendo,
-    Literal(f64),
-}
-
-impl<'a> TryFrom<Pair<'a, Rule>> for Modulation {
-    type Error = Error<Rule>;
-
-    fn try_from(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        match inner.as_rule() {
-            Rule::ModulationSymbol => Self::from_symbol(inner),
-            Rule::LiteralModulation => Self::from_literal_modulation(inner),
-            _ => CollyParser::rule_error(&inner),
-        }
-    }
-}
-
-impl Modulation {
-    fn from_literal_modulation(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        let inner = CollyParser::first_inner_for_pair(pair)?;
-        let value: f64 = inner.as_str().parse().unwrap();
-        Ok(Modulation::Literal(value))
-    }
-
-    fn from_symbol(pair: Pair<'_, Rule>) -> ParseResult<Self> {
-        match pair.as_str() {
-            "p" => Ok(Modulation::Down),
-            "F" => Ok(Modulation::Up),
-            "<" => Ok(Modulation::Diminuendo),
-            ">" => Ok(Modulation::Crescendo),
             _ => CollyParser::rule_error(&pair),
         }
     }
