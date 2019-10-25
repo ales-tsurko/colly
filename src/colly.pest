@@ -70,7 +70,7 @@ Chord = ${ "[" ~ WHITESPACE* ~ (BeatEvent ~ WHITESPACE*)+ ~ "]" ~ EventMethod* }
 Group = ${ PatternAtom+ }
 PatternAtom = { 
     Octave 
-    | (( Note | Tie | Pause | PatternInlet | Interpolation ) ~ EventMethod*) }
+    | (( Note | Tie | Pause | PatternInput | Interpolation ) ~ EventMethod*) }
 Note = ${ Alteration* ~ Pitch }
 Pitch = { ASCII_DIGIT | 'a'..'f' }
 Pause = { "r" }
@@ -79,4 +79,4 @@ Octave = { "o" | "O" }
 Alteration = { "+" | "-" }
 EventMethod = { "." | "*" | ":" }
 Interpolation = { "~" }
-PatternInlet = !{ "{" ~ Expression ~ "}" }
+PatternInput = !{ "{" ~ Expression ~ "}" }

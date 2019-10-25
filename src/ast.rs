@@ -624,7 +624,7 @@ pub enum PatternAtomValue {
     Note(Note),
     Tie,
     Pause,
-    PatternInlet(Expression),
+    PatternInput(Expression),
     Interpolation,
 }
 
@@ -658,7 +658,7 @@ impl<'a> TryFrom<Pair<'a, Rule>> for PatternAtom {
                 value: PatternAtomValue::Pause,
                 methods: Self::parse_methods(inner)?,
             }),
-            Rule::PatternInlet => Self::from_inlet(value, inner),
+            Rule::PatternInput => Self::from_inlet(value, inner),
             Rule::Interpolation => Ok(PatternAtom {
                 value: PatternAtomValue::Interpolation,
                 methods: Self::parse_methods(inner)?,
@@ -686,7 +686,7 @@ impl PatternAtom {
         let expression = CollyParser::first_inner_for_pair(value)?;
 
         Ok(PatternAtom {
-            value: PatternAtomValue::PatternInlet(expression.try_into()?),
+            value: PatternAtomValue::PatternInput(expression.try_into()?),
             methods: Self::parse_methods(methods)?,
         })
     }

@@ -699,7 +699,7 @@ fn test_parse_pattern_inlet() {
         Rule::PatternAtom,
     );
     let expected = PatternAtom {
-        value: PatternAtomValue::PatternInlet(Expression::Function(
+        value: PatternAtomValue::PatternInput(Expression::Function(
             FunctionCall {
                 identifier: Identifier("choose".to_string()),
                 parameters: vec![Expression::Array(vec![

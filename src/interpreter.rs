@@ -534,7 +534,7 @@ impl AtomInterpreter {
             ast::PatternAtomValue::Pause => {
                 Ok(Some(self.next_intermediate(Audible::Pause, &atom.methods)))
             }
-            ast::PatternAtomValue::PatternInlet(expression) => unimplemented!(),
+            ast::PatternAtomValue::PatternInput(expression) => unimplemented!(),
             ast::PatternAtomValue::Interpolation => unimplemented!(),
         }
     }
